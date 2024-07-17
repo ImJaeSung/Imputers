@@ -41,6 +41,16 @@ def arg_as_list(s):
         raise argparse.ArgumentTypeError("Argument \"%s\" is not a list" % (s))
     return v
 #%%
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+#%%
 def get_args(debug):
     parser = argparse.ArgumentParser('parameters')
     parser.add_argument("--seed", type=int, default=0, 
@@ -69,6 +79,9 @@ def get_args(debug):
     parser.add_argument('--k', type=int, default=20,
                         help='# number of IS during training.')
     
+    parser.add_argument('--multiple', default=False, type=str2bool,
+                        help="multiple imputation")
+    
     if debug:
         return parser.parse_args(args=[])
     else:    
@@ -91,10 +104,19 @@ def main():
     dataset_module = importlib.import_module('datasets.preprocess')
     importlib.reload(dataset_module)
     CustomDataset = dataset_module.CustomDataset
-    train_dataset = CustomDataset(
-        config,
-        train=True
-    )
+    
+    if config["multiple"]: 
+        config["test_size"] = 0 # not using test data in multiple imputation
+        train_dataset = CustomDataset(
+            config,
+            train=True
+        )
+    
+    else:      
+        train_dataset = CustomDataset(
+            config,
+            train=True
+        )
 
     train_dataset_zero = train_dataset.data.copy()
     train_dataset_zero[np.isnan(train_dataset.data)] = 0 # zero imputation
