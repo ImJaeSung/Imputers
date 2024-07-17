@@ -29,7 +29,7 @@ def train_function(
         # x = torch.from_numpy(batches_data[i]).float().to(device)
         # mask = torch.from_numpy(batches_mask[i]).float().to(device)
         
-        neg_bound, disc_loss = model.miwae_loss(x, mask)
+        neg_bound, disc_loss = model.loss_function(x, mask)
         loss = neg_bound + disc_loss
         loss_.append(("NLL", neg_bound))
         loss_.append(("Disc_loss", disc_loss))

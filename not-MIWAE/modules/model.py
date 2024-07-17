@@ -136,13 +136,13 @@ class notMIWAE(nn.Module):
             )
             disc_x_out = F.gumbel_softmax(
                 logit[:, st:end], hard=True
-            )
+            ) # reconstruction
             disc_mask = torch.Tensor.repeat(
                 mask[:, p+i],[k, ]
             )
             
-            disc_x_out[~disc_mask] = disc_x[~disc_mask] # complete ???
-            disc_recon_x.append(disc_x_out)
+            disc_x[~disc_mask] = disc_x_out[~disc_mask]
+            disc_recon_x.append(disc_x)
             st = end
         
         disc_recon_x = torch.cat(disc_recon_x, dim=-1)
@@ -222,242 +222,67 @@ class notMIWAE(nn.Module):
         
         imputed = []
         for batch in train_dataloader:
-            batch_size = len(batch)
-            mask = (~torch.isnan(batch)).to(torch.float32).to(self.device)
-            batch = batch.to(self.device)
-            batch[torch.isnan(batch)] = 0
-        
-            out_encoder = self.encoder(batch)
-            qz_given_xo = torch.distributions.Independent(
-                Normal(
-                    loc=out_encoder[..., :l],
-                    scale=nn.Softplus()(out_encoder[..., l:(2*l)])+ 0.001
-                ), 
-                1,
-            )
-        
-            z_given_x = qz_given_xo.rsample([M]) # (K, b, 1)
-            z_given_x_flat = z_given_x.reshape([-1, l])
+            with torch.no_grad():
+                batch_size = len(batch)
+                mask = (~torch.isnan(batch)).to(torch.float32).to(self.device)
+                batch = batch.to(self.device)
+                batch[torch.isnan(batch)] = 0
             
-            out_decoder = self.decoder(z_given_x_flat)
-            all_means_obs_model = out_decoder[..., :p] # (b*K, num_continuous_features)
-            all_scales_obs_model = (
-                nn.Softplus()(out_decoder[..., p:(2*p)]) + 0.001
-            ) # (b*K, num_continuous_features)
-
-            logit = out_decoder[:, (2*p):]
-            
-            x_given_z = torch.distributions.Independent(
-                Normal(
-                    loc=all_means_obs_model,
-                    scale=all_scales_obs_model),
-                1,
-            )
-            
-            disc_xms = []
-            st = 0
-            end = 0
-            for i, n in enumerate(self.num_categories):
-                end += n
-                disc_xms.append(
-                    Categorical(logits=logit[:,st:end]).sample()
+                out_encoder = self.encoder(batch)
+                qz_given_xo = torch.distributions.Independent(
+                    Normal(
+                        loc=out_encoder[..., :l],
+                        scale=nn.Softplus()(out_encoder[..., l:(2*l)])+ 0.001
+                    ), 
+                    1,
                 )
-                st = end
+            
+                z_given_x = qz_given_xo.rsample([M]) # (K, b, 1)
+                z_given_x_flat = z_given_x.reshape([-1, l])
                 
-            disc_xms = torch.stack(disc_xms).T.reshape([M, batch_size, -1])
-            cont_xms = x_given_z.sample().reshape([M, batch_size, p])
-            
-            xms = torch.cat([cont_xms, disc_xms], dim=-1)
-            
-            batch = torch.Tensor.repeat(batch, [M, 1, 1])
-            mask = torch.Tensor.repeat(mask, [M, 1, 1])
-            mask = ~mask.to(torch.bool) # missing : 1
-            
-            batch[mask] = xms[mask]
-            imputed.append(batch)
+                out_decoder = self.decoder(z_given_x_flat)
+                all_means_obs_model = out_decoder[..., :p] # (b*K, num_continuous_features)
+                all_scales_obs_model = (
+                    nn.Softplus()(out_decoder[..., p:(2*p)]) + 0.001
+                ) # (b*K, num_continuous_features)
+
+                logit = out_decoder[:, (2*p):]
+                
+                x_given_z = torch.distributions.Independent(
+                    Normal(
+                        loc=all_means_obs_model,
+                        scale=all_scales_obs_model),
+                    1,
+                )
+                
+                disc_xms = []
+                st = 0
+                end = 0
+                for i, n in enumerate(self.num_categories):
+                    end += n
+                    disc_xms.append(
+                        Categorical(logits=logit[:,st:end]).sample()
+                    )
+                    st = end
+                    
+                disc_xms = torch.stack(disc_xms).T.reshape([M, batch_size, -1])
+                cont_xms = x_given_z.sample().reshape([M, batch_size, p])
+                
+                xms = torch.cat([cont_xms, disc_xms], dim=-1)
+                
+                batch = torch.Tensor.repeat(batch, [M, 1, 1])
+                mask = torch.Tensor.repeat(mask, [M, 1, 1])
+                mask = ~mask.to(torch.bool) # missing : 1
+                
+                batch[mask] = xms[mask]
+                imputed.append(batch)
         
         full_data = torch.cat(imputed, dim=1)
         
         data_list = []
         for data in full_data: 
-            train_dataset.EncodedInfo.mean
             data = pd.DataFrame(data.cpu().numpy(), columns=train_dataset.features)
-        
-            data[train_dataset.continuous_features] = data[train_dataset.continuous_features]*train_dataset.EncodedInfo.std + train_dataset.EncodedInfo.mean
-            
-            data[train_dataset.categorical_features] = data[train_dataset.categorical_features].astype(int)
-            data[train_dataset.integer_features] = data[train_dataset.integer_features].round(0).astype(int)
-            data_list.append(data)
-        
-        return data_list
-    
-    def single_impute(self, train_dataset, seed=0):
-        set_random_seed(seed)
-        
-        train_dataloader = DataLoader(
-            train_dataset,
-            batch_size=model.config["batch_size"],
-            shuffle=False)
-        
-        p = model.num_continuous_features
-        l = model.latent_dim
-        M = model.config["M"]
 
-        imputed = []
-        for batch in train_dataloader:
-            batch_size = len(batch)
-            
-            mask = (~torch.isnan(batch)).to(model.device) # missing: 0 (equal to training)
-            batch = batch.to(model.device)
-            batch[torch.isnan(batch)] = 0 # zero imputation
-
-            # Encoder
-            out_encoder = model.encoder(batch)
-            qz_given_xo = torch.distributions.Independent(
-                Normal(
-                    loc=out_encoder[..., :l],
-                    scale=nn.Softplus()(out_encoder[..., l:(2*l)])+ 0.001
-                ), 
-                1,
-            )
-        
-            # z sampling k
-            z_given_x = qz_given_xo.rsample([M]) # (K, b, 1)
-            z_given_x_flat = z_given_x.reshape([M*batch_size, l])
-            
-            # Decoder
-            out_decoder = model.decoder(z_given_x_flat)
-            all_means_obs_model = out_decoder[..., :p] # (b*K, num_continuous_features)
-            all_scales_obs_model = (
-                nn.Softplus()(out_decoder[..., p:(2*p)]) + 0.001
-            ) # (b*K, num_continuous_features)
-            
-            x_given_z = torch.distributions.Independent(
-                Normal(
-                    loc=all_means_obs_model,
-                    scale=all_scales_obs_model
-                ),
-                1,
-            )
-            
-            # data, mask repeat
-            data_flat = torch.Tensor.repeat(batch[:, :p], [M, 1]).reshape(-1, 1) # (b*K*num_continuous_features, 1)
-            tiledmask = torch.Tensor.repeat(mask[:, :p], [M, 1]) # (b*K, num_continuous_features)
-            
-            # x^m ~ p(x^m|z)
-            # continuous
-            pz = torch.distributions.Independent(
-                torch.distributions.Normal(
-                    loc=torch.zeros(
-                        len(all_means_obs_model.reshape(-1, 1))
-                    ).to(model.device), 
-                    scale = torch.ones(
-                        len(all_means_obs_model.reshape(-1, 1))
-                    ).to(model.device)), 
-                1,
-            )
-            
-            z = pz.sample([1]).reshape(-1, 1)
-            cont_recon_x = all_means_obs_model.reshape(-1, 1) + z*all_scales_obs_model.reshape(-1, 1)
-
-            # discrete
-            logit = out_decoder[:,(2*p):]
-            
-            st = 0
-            end = 0
-            disc_recon_x = []
-            for i, n in enumerate(model.num_categories):
-                end += n
-                disc_x = F.one_hot(
-                    batch[:, p+i].to(torch.long),
-                    num_classes=n
-                ).to(torch.float32)
-        
-                disc_x = torch.Tensor.repeat(
-                    disc_x,[M, 1]
-                )
-                disc_x_out = F.gumbel_softmax(
-                    logit[:, st:end], hard=True
-                )
-                disc_mask = torch.Tensor.repeat(
-                    mask[:, p+i],[M, ]
-                )
-                
-                disc_x_out[~disc_mask] = disc_x[~disc_mask]
-                disc_recon_x.append(disc_x_out)
-                st = end
-            
-            disc_recon_x = torch.cat(disc_recon_x, dim=-1)
-            
-            # concatenation x^o, x^m 
-            mask_flat = torch.Tensor.repeat(mask[:, :p], [M, 1]).reshape(-1, 1)
-            recon_x = data_flat.clone()
-            recon_x[~mask_flat] = cont_recon_x[~mask_flat] # imputing masking value in continuous
-            recon_x = recon_x.reshape(-1, p)
-
-            recon_x = torch.cat([recon_x, disc_recon_x], dim=-1) # x^m & x^o
-            
-            mask_logit = model.mask_layer(recon_x)
-            
-            # p(s|x^o,x^m)
-            all_mask = torch.Tensor.repeat(mask, [M, 1])
-
-            ps_given_xo_xm = Bernoulli(logits=mask_logit)
-            log_ps_given_xo_xm = torch.sum(
-                ps_given_xo_xm.log_prob(all_mask.to(torch.float32)),
-                dim=-1
-            ).reshape(M, batch_size)
-            
-            # log p(x^o|z)
-            all_log_pxo_given_z_flat = Normal(
-                loc=all_means_obs_model.reshape(-1, 1),
-                scale=all_scales_obs_model.reshape(-1, 1),
-            ).log_prob(data_flat) # (b*K*num_continuous_features, 1)
-            
-            all_log_pxo_given_z = all_log_pxo_given_z_flat.reshape(batch_size*M, p)
-            
-            log_pxo_given_z = torch.sum(
-                all_log_pxo_given_z*tiledmask, axis=1
-            ).reshape(M, batch_size)
-            
-            prior = generate_prior(model.config, model.device)
-            log_pz = prior.log_prob(z_given_x)
-            log_q = qz_given_xo.log_prob(z_given_x)
-
-            imp_weights = torch.nn.functional.softmax(
-                log_ps_given_xo_xm + log_pxo_given_z + log_pz - log_q, 0
-            )  # these are w_1,....,w_L for all observations in the batch
-            
-            cont_xms = x_given_z.sample().reshape([M, batch_size, p])
-            cont_xm = torch.einsum("ki,kij->ij", imp_weights, cont_xms)
-
-            # discrete
-            logit = out_decoder[:, (2*p):]
-            
-            disc_xm = []
-            st = 0
-            end = 0
-            for i, n in enumerate(model.num_categories):
-                end += n
-                disc_xm.append(
-                    Categorical(logits=logit[:,st:end]).sample()
-                )   
-                st = end
-            disc_xms = torch.stack(disc_xm).T.reshape(
-                [M , batch_size, -1]
-            )
-
-            disc_xm = torch.mode(disc_xms, dim=0)[0]
-
-            xm = torch.cat([cont_xm, disc_xm], dim=-1)
-            imputed.append(xm)
-
-        imputed = torch.cat(imputed, dim=0)
-        
-        data_list = []
-        for data in imputed: 
-            data = pd.DataFrame(data.cpu().numpy(), columns=train_dataset.features)
-        
             """un-standardization of synthetic data"""
             for col, scaler in train_dataset.scalers.items():
                 data[[col]] = scaler.inverse_transform(data[[col]])
@@ -466,7 +291,182 @@ class notMIWAE(nn.Module):
             data[train_dataset.categorical_features] = data[train_dataset.categorical_features].astype(int)
             data[train_dataset.integer_features] = data[train_dataset.integer_features].round(0).astype(int)
             data_list.append(data)
-        
+
         return data_list
+    
+    def single_impute(self, train_dataset, seed=0):
+        set_random_seed(seed)
+        
+        train_dataloader = DataLoader(
+            train_dataset,
+            batch_size=self.config["batch_size"],
+            shuffle=False)
+        
+        p = self.num_continuous_features
+        l = self.latent_dim
+        M = self.config["M"]
+
+        imputed = []
+        for batch in train_dataloader:
+            with torch.no_grad():
+                batch_size = len(batch)
+                
+                mask = (~torch.isnan(batch)).to(self.device) # missing: 0 (equal to training)
+                batch = batch.to(self.device)
+                batch[torch.isnan(batch)] = 0 # zero imputation
+
+                # Encoder
+                out_encoder = self.encoder(batch)
+                qz_given_xo = torch.distributions.Independent(
+                    Normal(
+                        loc=out_encoder[..., :l],
+                        scale=nn.Softplus()(out_encoder[..., l:(2*l)])+ 0.001
+                    ), 
+                    1,
+                )
+            
+                # z sampling k
+                z_given_x = qz_given_xo.rsample([M]) # (K, b, 1)
+                z_given_x_flat = z_given_x.reshape([M*batch_size, l])
+                
+                # Decoder
+                out_decoder = self.decoder(z_given_x_flat)
+                all_means_obs_model = out_decoder[..., :p] # (b*K, num_continuous_features)
+                all_scales_obs_model = (
+                    nn.Softplus()(out_decoder[..., p:(2*p)]) + 0.001
+                ) # (b*K, num_continuous_features)
+                
+                x_given_z = torch.distributions.Independent(
+                    Normal(
+                        loc=all_means_obs_model,
+                        scale=all_scales_obs_model
+                    ),
+                    1,
+                )
+                
+                # data, mask repeat
+                data_flat = torch.Tensor.repeat(batch[:, :p], [M, 1]).reshape(-1, 1) # (b*K*num_continuous_features, 1)
+                tiledmask = torch.Tensor.repeat(mask[:, :p], [M, 1]) # (b*K, num_continuous_features)
+                
+                # x^m ~ p(x^m|z)
+                pz = torch.distributions.Independent(
+                    torch.distributions.Normal(
+                        loc=torch.zeros(
+                            len(all_means_obs_model.reshape(-1, 1))
+                        ).to(self.device), 
+                        scale = torch.ones(
+                            len(all_means_obs_model.reshape(-1, 1))
+                        ).to(self.device)), 
+                    1,
+                )
+                
+                z = pz.sample([1]).reshape(-1, 1)
+                cont_recon_x = all_means_obs_model.reshape(-1, 1) + z*all_scales_obs_model.reshape(-1, 1)
+
+                logit = out_decoder[:,(2*p):]
+                
+                st = 0
+                end = 0
+                disc_recon_x = []
+                for i, n in enumerate(self.num_categories):
+                    end += n
+                    disc_x = F.one_hot(
+                        batch[:, p+i].to(torch.long),
+                        num_classes=n
+                    ).to(torch.float32)
+            
+                    disc_x = torch.Tensor.repeat(
+                        disc_x,[M, 1]
+                    )
+                    disc_x_out = F.gumbel_softmax(
+                        logit[:, st:end], hard=True
+                    )
+                    disc_mask = torch.Tensor.repeat(
+                        mask[:, p+i],[M, ]
+                    )
+                    
+                    disc_x[~disc_mask] = disc_x_out[~disc_mask]
+                    disc_recon_x.append(disc_x_out)
+                    st = end
+                
+                disc_recon_x = torch.cat(disc_recon_x, dim=-1)
+                
+                # concatenation x^o, x^m 
+                mask_flat = torch.Tensor.repeat(mask[:, :p], [M, 1]).reshape(-1, 1)
+                recon_x = data_flat.clone()
+                recon_x[~mask_flat] = cont_recon_x[~mask_flat] # imputing masking value in continuous
+                recon_x = recon_x.reshape(-1, p)
+
+                recon_x = torch.cat([recon_x, disc_recon_x], dim=-1) # x^m & x^o
+                
+                mask_logit = self.mask_layer(recon_x)
+                
+                # p(s|x^o,x^m)
+                all_mask = torch.Tensor.repeat(mask, [M, 1])
+
+                ps_given_xo_xm = Bernoulli(logits=mask_logit)
+                log_ps_given_xo_xm = torch.sum(
+                    ps_given_xo_xm.log_prob(all_mask.to(torch.float32)),
+                    dim=-1
+                ).reshape(M, batch_size)
+                
+                # log p(x^o|z)
+                all_log_pxo_given_z_flat = Normal(
+                    loc=all_means_obs_model.reshape(-1, 1),
+                    scale=all_scales_obs_model.reshape(-1, 1),
+                ).log_prob(data_flat) # (b*K*num_continuous_features, 1)
+                
+                all_log_pxo_given_z = all_log_pxo_given_z_flat.reshape(batch_size*M, p)
+                
+                log_pxo_given_z = torch.sum(
+                    all_log_pxo_given_z*tiledmask, axis=1
+                ).reshape(M, batch_size)
+                
+                prior = generate_prior(self.config, self.device)
+                log_pz = prior.log_prob(z_given_x)
+                log_q = qz_given_xo.log_prob(z_given_x)
+
+                imp_weights = torch.nn.functional.softmax(
+                    log_ps_given_xo_xm + log_pxo_given_z + log_pz - log_q, 0
+                )  # these are w_1,....,w_L for all observations in the batch
+                
+                cont_xms = x_given_z.sample().reshape([M, batch_size, p])
+                cont_xm = torch.einsum("ki,kij->ij", imp_weights, cont_xms)
+
+                # discrete
+                logit = out_decoder[:, (2*p):]
+                
+                disc_xm = []
+                st = 0
+                end = 0
+                for i, n in enumerate(self.num_categories):
+                    end += n
+                    disc_xm.append(
+                        Categorical(logits=logit[:,st:end]).sample()
+                    )   
+                    st = end
+                disc_xms = torch.stack(disc_xm).T.reshape(
+                    [M , batch_size, -1]
+                )
+
+                disc_xm = torch.mode(disc_xms, dim=0)[0]
+
+                xm = torch.cat([cont_xm, disc_xm], dim=-1)
+                imputed.append(xm)
+
+        data = torch.cat(imputed, dim=0)
+        
+        data = pd.DataFrame(
+            data.cpu().numpy(), 
+            columns=train_dataset.features)
+        
+        """un-standardization of synthetic data"""
+        for col, scaler in train_dataset.scalers.items():
+            data[[col]] = scaler.inverse_transform(data[[col]])
+        
+        """post-process"""
+        data[train_dataset.categorical_features] = data[train_dataset.categorical_features].astype(int)
+        data[train_dataset.integer_features] = data[train_dataset.integer_features].round(0).astype(int)
+    
+        return data
 # %%
-_

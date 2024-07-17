@@ -8,7 +8,9 @@ import pandas as pd
 import modules
 from modules import utils
 from modules.utils import *
-from evaluation.evaluation import evaluate
+
+from evaluation import evaluation_multiple # multiple imputation
+from evaluation import evaluation # single imputation
 #%%
 import sys
 import subprocess
@@ -43,7 +45,7 @@ def str2bool(v):
 def get_args(debug):
     parser = argparse.ArgumentParser('parameters')
     
-    parser.add_argument('--ver', type=int, default=0, 
+    parser.add_argument('--ver', type=int, default=1, 
                         help='model version number')
     parser.add_argument('--dataset', type=str, default='loan', 
                         help="""
@@ -56,8 +58,11 @@ def get_args(debug):
                         help="how to generate missing: MCAR, MAR, MNARL, MNARQ") 
     parser.add_argument("--missing_rate", default=0.3, type=float,
                         help="missing rate") 
-
-    parser.add_argument("--M", default=100, type=int,
+    
+    # multiple imputation
+    parser.add_argument('--multiple', default=False, type=str2bool,
+                        help="multiple imputation")
+    parser.add_argument("--M", default=20, type=int,
                         help="the number of multiple imputation")
     
     if debug:
@@ -67,7 +72,7 @@ def get_args(debug):
 #%%
 def main(config):
     #%%
-    config = vars(get_args(debug=True)) # default configuration
+    config = vars(get_args(debug=False)) # default configuration
 
     """model load"""
     model_name = f"not-MIWAE_{config['dataset']}_{config['missing_type']}_{config['missing_rate']}"
@@ -94,15 +99,23 @@ def main(config):
     CustomDataset = dataset_module.CustomDataset
 
     """dataset"""
-    train_dataset = CustomDataset(
-        config,
-        train=True
-    )
-    test_dataset = CustomDataset(
-        config,
-        scalers=train_dataset.scalers,
-        train=False,
-    )
+    if config["multiple"]: 
+        config["test_size"] = 0 # not using test data in multiple imputation
+        train_dataset = CustomDataset(
+            config,
+            train=True
+        )
+    
+    else:      
+        train_dataset = CustomDataset(
+            config,
+            train=True
+        )
+        test_dataset = CustomDataset(
+            config,
+            scalers=train_dataset.scalers,
+            train=False,
+        )
     #%%
     """model load"""
     model_module = importlib.import_module("modules.model")
@@ -131,12 +144,16 @@ def main(config):
     """number of parameters"""
     count_parameters = lambda model: sum(p.numel() for p in model.parameters())
     num_params = count_parameters(model)
-    print(f"Number of Parameters: {num_params / 1000:.1f}K")
+    print(f"Number of Parameters: {num_params / 1000}K")
     wandb.log({"Number of Parameters": num_params / 1000})
     #%%
     """imputation evaluation"""
-    imputed = model.impute(train_dataset)
-    len(imputed)
+    if config["multiple"]:
+        imputed = evaluation_multiple.evaluate(train_dataset, model, M=100)
+    else:
+        imputed = model.single_impute(train_dataset)
+        results = evaluation.evaluate(imputed, train_dataset, test_dataset, config)
+    
     for x, y in results._asdict().items():
         print(f"{x}: {y:.3f}")
         wandb.log({f"{x}": y})
@@ -144,85 +161,5 @@ def main(config):
     wandb.config.update(config, allow_val_change=True)
     wandb.run.finish()
     #%% 
-config = vars(get_args(debug=True)) # default configuration
-datasets = ['redwine','spam','whitewine','yeast','kings','covtype']
-
-for dataset in datasets:
-    config['dataset'] = dataset
-    for i in range(10):
-        run = wandb.init(
-            project="not-MIWAE", # put your WANDB project name
-            # entity="anseunghwan", # put your WANDB username
-            tags=["inference", "imputation.v1"], # put tags of this python project
-        )
-        config['ver'] = i
-        main(config)
-# if __name__ == "__main__":
-#     main()
-#%%
-# config = vars(get_args(debug=True))
-# datasets = ['letter']
-# for dataset in datasets:
-#     config['dataset'] = dataset
-#     for i in range(10):
-#         run = wandb.init(
-#             project="MIWAE", # put your WANDB project name
-#             # entity="anseunghwan", # put your WANDB username
-#             tags=["inference", "imputation.v1"], # put tags of this python project
-#         )
-#         config['ver'] = i
-#         main(config)
-# if config["dataset"] == "abalone":
-#     target = "Rings"
-# elif config["dataset"] == "banknote":
-#     target = "class"
-# elif config["dataset"] == "breast":
-#     target = "Diagnosis"
-# elif config["dataset"] == "concrete":
-#     target = "Age"
-# elif config["dataset"] == "kings":
-#     target = "grade"
-# elif config["dataset"] == "letter":
-#     target = "lettr"
-# elif config["dataset"] == "loan":
-#     target = "Personal Loan"
-# elif config["dataset"] == "redwine":
-#     target = "quality"
-# elif config["dataset"] == "spam":
-#     target = "class"
-# elif config["dataset"] == "whitewine":
-#     target = "quality"
-# elif config["dataset"] == "yeast":
-#     target = "localization_site"
-# elif config["dataset"] == "covtype":
-#     target = "Cover_Type"
-# else:
-#     raise ValueError(f"{config['dataset']} is NOT valid dataset.")
-#%%
-# if config["dataset"] == "abalone":
-#     target = "Rings"
-# elif config["dataset"] == "banknote":
-#     target = "variance"
-# elif config["dataset"] == "breast":
-#     target = "radius1"
-# elif config["dataset"] == "concrete":
-#     target = "Concrete compressive strength"
-# elif config["dataset"] == "kings":
-#     target = "yr_built"
-# elif config["dataset"] == "letter":
-#     target = "lettr"
-# elif config["dataset"] == "loan":
-#     target = "Income"
-# elif config["dataset"] == "redwine":
-#     target = "density"
-# elif config["dataset"] == "spam":
-#     target = "capital_run_length_average"
-# elif config["dataset"] == "whitewine":
-#     target = "density"
-# elif config["dataset"] == "yeast":
-#     target = "mcg"
-# elif config["dataset"] == "covtype": # M=10
-#     target = "Aspect"
-# else:
-#     raise ValueError(f"{config['dataset']} is NOT valid dataset.")
-#%%
+if __name__ == "__main__":
+    main()

@@ -65,7 +65,7 @@ def get_args(debug):
                         help='Number of epochs.')
     parser.add_argument('--lr', type=float, default=0.001,
                         help='Learning rate.')
-    
+            
     parser.add_argument('--k', type=int, default=20,
                         help='# number of IS during training.')
     
@@ -106,8 +106,8 @@ def main():
     wandb.config.update(config, allow_val_change=True)
     
     # mask
-    mask = train_dataset.mask # 1:mask
-    mask = ~mask
+    mask = train_dataset.mask # 1:missing
+    mask = ~mask # 0: missing
 
     # checking masking
     assert np.isnan(train_dataset.data).sum() == n*p - mask.sum() 
@@ -128,7 +128,11 @@ def main():
     """model"""
     model_module = importlib.import_module('modules.model')
     importlib.reload(model_module)
-    model = model_module.notMIWAE(config, train_dataset.EncodedInfo, device).to(device)
+    model = model_module.notMIWAE(
+        config, 
+        train_dataset.EncodedInfo, 
+        device
+    ).to(device)
 
     print(model.train())
     #%%

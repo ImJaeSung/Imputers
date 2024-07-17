@@ -24,7 +24,7 @@ def evaluate(train_dataset, model, M=100):
     
     est = []
     var = []
-    full_imputed = model.impute(train_dataset, M=M, seed=0)
+    full_imputed = model.multiple_impute(train_dataset, M=M, seed=0)
     for imputed in tqdm(full_imputed):
         
         data = imputed[train_dataset.continuous_features]
@@ -32,12 +32,6 @@ def evaluate(train_dataset, model, M=100):
         p = binary.mean(axis=0)
         est.append(p)
         var.append(p * (1. - p) / len(binary))
-        # est.append(
-        #     pd.DataFrame(imputed[train_dataset.continuous_features].mean(axis=0))
-        # )
-        # var.append(
-        #     pd.DataFrame(imputed[train_dataset.continuous_features].var(axis=0, ddof=1) / len(imputed))
-        # )
         
     Q = np.mean(est, axis=0)
     U = np.mean(var, axis=0) + (M + 1) / M * np.var(est, axis=0, ddof=1)
