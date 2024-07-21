@@ -14,8 +14,8 @@ Metrics = namedtuple(
         "smape",
         "error",
         "arsmape",
-        "RMSE",
-        "MAE",
+        "armse",
+        "armae",
         "KL",
         "GoF",
         "MMD",
@@ -43,10 +43,12 @@ def evaluate(imputed, train_dataset, test_dataset, config):
     arsmape = smape + error
     
     print("\n2. Statistical Fidelity: RMSE...")
-    RMSE, _ = metrics_impute.RootMeanSquaredError(train_dataset, imputed)
-    
+    rmse, error = metrics_impute.RootMeanSquaredError(train_dataset, imputed)
+    armse = rmse + error
+
     print("\n3. Statistical Fidelity: MAE...")
-    MAE, _ = metrics_impute.MeanAbsoluteError(train_dataset, imputed)
+    mae, error = metrics_impute.MeanAbsoluteError(train_dataset, imputed)
+    armae = mae + error
 
     print("\n4. Statistical Fidelity: KL-Divergence...")
     KL = metrics_stat.KLDivergence(train_dataset, imputed)
@@ -88,7 +90,7 @@ def evaluate(imputed, train_dataset, test_dataset, config):
     # figs = utils.marginal_plot(train_dataset.raw_data, imputed, config)
 
     return Metrics(
-        smape, error, arsmape, RMSE, MAE, 
+        smape, error, arsmape, armse, armae, 
         KL, GoF, MMD, WD, 
         base_reg, syn_reg, base_cls, syn_cls, model_selection, feature_selection,
         Kanon_base, Kanon_syn, KMap, DCR_RS, DCR_RR, DCR_SS, AD
