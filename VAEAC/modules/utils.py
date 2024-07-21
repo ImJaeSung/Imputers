@@ -1,9 +1,202 @@
+"""
+Reference:
+[1] https://github.com/tigvarts/vaeac/blob/master/train_utils.py
+[2] https://github.com/tigvarts/vaeac/blob/master/nn_utils.py
+[3] https://github.com/tigvarts/vaeac/blob/master/prob_utils.py
+"""
+#%%
+import random
+from tqdm import tqdm
+
+import numpy as np
+
 import torch
+import torch.nn as nn
 from torch.distributions import Categorical, Normal
-from torch.nn import Module
 from torch.nn.functional import softplus, softmax
 
+#%%
+def set_random_seed(seed):
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)  # 모든 GPU에 대한 시드 고정
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
+    # NumPy 시드 고정
+    np.random.seed(seed)
+    random.seed(seed) 
+#%%
+def extend_batch(batch, dataloader, batch_size):
+    """
+    If the batch size is less than batch_size, extends it with
+    data from the dataloader until it reaches the required size.
+    Here batch is a tensor.
+    Returns the extended batch.
+    """
+    while batch.shape[0] != batch_size:
+        dataloader_iterator = iter(dataloader)
+        nw_batch = next(dataloader_iterator)
+        if nw_batch.shape[0] + batch.shape[0] > batch_size:
+            nw_batch = nw_batch[:batch_size - batch.shape[0]]
+        batch = torch.cat([batch, nw_batch], 0)
+    return batch
+
+
+def extend_batch_tuple(batch, dataloader, batch_size):
+    """
+    The same as extend_batch, but here the batch is a list of tensors
+    to be extended. All tensors are assumed to have the same first dimension.
+    Returns the extended batch (i. e. list of extended tensors).
+    """
+    while batch[0].shape[0] != batch_size:
+        dataloader_iterator = iter(dataloader)
+        nw_batch = next(dataloader_iterator)
+        if nw_batch[0].shape[0] + batch[0].shape[0] > batch_size:
+            nw_batch = [nw_t[:batch_size - batch[0].shape[0]]
+                        for nw_t in nw_batch]
+        batch = [torch.cat([t, nw_t], 0) for t, nw_t in zip(batch, nw_batch)]
+    return batch
+
+
+def get_validation_iwae(val_dataloader, mask_generator, batch_size,
+                        model, num_samples, verbose=False):
+    """
+    Compute mean IWAE log likelihood estimation of the validation set.
+    Takes validation dataloader, mask generator, batch size, model (VAEAC)
+    and number of IWAE latent samples per object.
+    Returns one float - the estimation.
+    """
+    cum_size = 0
+    avg_iwae = 0
+    iterator = val_dataloader
+    if verbose:
+        iterator = tqdm(iterator)
+    for batch in iterator:
+        init_size = batch.shape[0]
+        batch = extend_batch(batch, val_dataloader, batch_size)
+        mask = mask_generator(batch)
+
+        if next(model.parameters()).is_cuda:
+            batch = batch.cuda()
+            mask = mask.cuda()
+        with torch.no_grad():
+ 
+            iwae = model.batch_iwae(batch, mask, num_samples)[:init_size]
+            avg_iwae = (avg_iwae * (cum_size / (cum_size + iwae.shape[0])) +
+                        iwae.sum() / (cum_size + iwae.shape[0]))
+            cum_size += iwae.shape[0]
+        if verbose:
+            iterator.set_description('Validation IWAE: %g' % avg_iwae)
+    return float(avg_iwae)
+
+#%%
+class ResBlock(nn.Module):
+    """
+    Usual full pre-activation ResNet bottleneck block.
+    For more information see
+    He, K., Zhang, X., Ren, S., & Sun, J. (2016, October).
+    Identity mappings in deep residual networks.
+    European Conference on Computer Vision (pp. 630-645).
+    Springer, Cham.
+    ArXiv link: https://arxiv.org/abs/1603.05027
+    """
+
+    def __init__(self, outer_dim, inner_dim):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.BatchNorm2d(outer_dim),
+            nn.LeakyReLU(),
+            nn.Conv2d(outer_dim, inner_dim, 1),
+            nn.BatchNorm2d(inner_dim),
+            nn.LeakyReLU(),
+            nn.Conv2d(inner_dim, inner_dim, 3, 1, 1),
+            nn.BatchNorm2d(inner_dim),
+            nn.LeakyReLU(),
+            nn.Conv2d(inner_dim, outer_dim, 1),
+        )
+
+    def forward(self, input):
+        return input + self.net(input)
+
+
+class SkipConnection(nn.Module):
+    """
+    Skip-connection over the sequence of layers in the constructor.
+    The module passes input data sequentially through these layers
+    and then adds original data to the result.
+    """
+    def __init__(self, *args):
+        super().__init__()
+        self.inner_net = nn.Sequential(*args)
+
+    def forward(self, input):
+        return input + self.inner_net(input)
+
+
+class MemoryLayer(nn.Module):
+    """
+    If output=False, this layer stores its input in a static class dictionary
+    `storage` with the key `id` and then passes the input to the next layer.
+    If output=True, this layer takes stored tensor from a static storage.
+    If add=True, it returns sum of the stored vector and an input,
+    otherwise it returns their concatenation.
+    If the tensor with specified `id` is not in `storage` when the layer
+    with output=True is called, it would cause an exception.
+
+    The layer is used to make skip-connections inside nn.Sequential network
+    or between several nn.Sequential networks without unnecessary code
+    complication.
+    The usage pattern is
+    ```
+        net1 = nn.Sequential(
+            MemoryLayer('#1'),
+            MemoryLayer('#0.1'),
+            nn.Linear(512, 256),
+            nn.LeakyReLU(),
+            MemoryLayer('#0.1', output=True, add=False),
+            # here add cannot be True because the dimensions mismatch
+            nn.Linear(768, 256),
+            # the dimension after the concatenation with skip-connection
+            # is 512 + 256 = 768
+        )
+        net2 = nn.Sequential(
+            nn.Linear(512, 512),
+            MemoryLayer('#1', output=True, add=True),
+            ...
+        )
+        b = net1(a)
+        d = net2(c)
+        # net2 must be called after net1,
+        # otherwise tensor '#1' will not be in `storage`
+    ```
+    """
+
+    storage = {}
+
+    def __init__(self, id, output=False, add=False):
+        super().__init__()
+        self.id = id
+        self.output = output
+        self.add = add
+
+    def forward(self, input):
+        if not self.output:
+            self.storage[self.id] = input
+            return input
+        else:
+            if self.id not in self.storage:
+                err = 'MemoryLayer: id \'%s\' is not initialized. '
+                err += 'You must execute MemoryLayer with the same id '
+                err += 'and output=False before this layer.'
+                raise ValueError(err)
+            stored = self.storage[self.id]
+            if not self.add:
+                data = torch.cat([input, stored], 1)
+            else:
+                data = input + stored
+            return data
+#%%
 def normal_parse_params(params, min_sigma=0):
     """
     Take a Tensor (e. g. neural network output) and return
@@ -59,7 +252,7 @@ def categorical_parse_params_column(params, min_prob=0):
     return distr
 
 
-class GaussianLoss(Module):
+class GaussianLoss(nn.Module):
     """
     Compute reconstruction log probability of groundtruth given
     a tensor of Gaussian distribution parameters and a mask.
@@ -84,7 +277,7 @@ class GaussianLoss(Module):
         return log_probs.view(groundtruth.shape[0], -1).sum(-1)
 
 
-class GaussianCategoricalLoss(Module):
+class GaussianCategoricalLoss(nn.Module):
     """
     This layer computes log probability of groundtruth for each object
     given the mask and the distribution parameters.
@@ -179,7 +372,7 @@ class GaussianCategoricalLoss(Module):
         return torch.cat(log_prob, 1).sum(-1)
 
 
-class CategoricalToOneHotLayer(Module):
+class CategoricalToOneHotLayer(nn.Module):
     """
     This layer expands categorical features into one-hot vectors, because
     multi-layer perceptrons are known to work better with this data
@@ -295,7 +488,7 @@ class GaussianCategoricalSampler(Module):
         return torch.cat(sample, 1)
 
 
-class SetGaussianSigmasToOne(Module):
+class SetGaussianSigmasToOne(nn.Module):
     """
     This layer is used in missing features imputation. Because the target
     metric for this problem is NRMSE, we set all sigma to one, so that

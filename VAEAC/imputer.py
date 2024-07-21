@@ -26,7 +26,7 @@ from evaluation_imputation import evaluate
 # from VAEAC.no_datasets import compute_normalization
 from modules.imputation_networks import get_imputation_networks
 from modules.train_utils import extend_batch, get_validation_iwae
-from modules.VAEAC import VAEAC
+from VAEAC.modules.model import VAEAC
 import wandb
 import warnings
 warnings.filterwarnings('ignore')
@@ -126,12 +126,11 @@ def get_args(arg_list=None, debug=False):
         return parser.parse_args()
     
 #%%
-
 def main():
     #%%
 
 #%%
-    config = vars(get_args(debug=False))
+    config = vars(get_args(debug=True))
 
 #%%
     # run = wandb.init(
