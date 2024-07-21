@@ -58,17 +58,18 @@ class CustomDataset(Dataset):
             data.mask(mask.astype(bool), np.nan, inplace=True)
 
         if train:
-            norm_mean, norm_std = self.compute_normalization(
+            self.norm_mean, self.norm_std = self.compute_normalization(
                 data, 
                 self.one_hot_max_sizes
             )
             data = self.transform(
                 data, 
-                norm_mean, 
-                norm_std
+                self.norm_mean, 
+                self.norm_std
             )
         
         self.data = data 
+        self.mask = None if config["missing_type"] == "None" else mask.astype(bool)
 
         self.EncodedInfo = EncodedInfo(
             len(self.features), self.num_continuous_features, self.num_categories, self.one_hot_max_sizes

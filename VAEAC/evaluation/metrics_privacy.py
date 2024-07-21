@@ -65,6 +65,9 @@ def kMap(train_dataset, imputed):
     scaler = StandardScaler().fit(train)
     train = scaler.transform(train)
     imputed = scaler.transform(imputed)
+
+    train = np.array(train, dtype=np.float32)
+    imputed = np.array(imputed, dtype=np.float32)
     
     values = []
     for n_clusters in [2, 5, 10, 15]:

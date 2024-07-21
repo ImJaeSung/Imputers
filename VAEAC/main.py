@@ -164,10 +164,9 @@ def main():
     )
 
     model = model_module.VAEAC(
-        networks['reconstruction_log_prob'],
-        networks['proposal_network'],
-        networks['prior_network'],
-        networks['generative_network']
+        config,
+        networks,
+        device
     ).to(device)
     model.train()
 

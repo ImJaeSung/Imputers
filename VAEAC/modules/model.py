@@ -2,20 +2,25 @@
 Reference:
 [1] https://github.com/tigvarts/vaeac/blob/master/VAEAC.py
 [2] https://github.com/tigvarts/vaeac/blob/master/imputation_networks.py
+[3] https://github.com/tigvarts/vaeac/blob/master/impute.py
 """
 #%%
+from tqdm import tqdm
 import math
+
+import pandas as pd
 
 import torch
 import torch.nn as nn
+from torch.utils.data import DataLoader
 from torch.distributions import kl_divergence
-
-from modules.prob_utils import normal_parse_params
-
 #%%
 from modules.mask_generators import MCARGenerator
-from modules.utils import ResBlock, MemoryLayer, SkipConnection
-from modules.prob_utils import (
+from modules.utils import (
+    MemoryLayer, 
+    extend_batch,
+    SkipConnection,
+    normal_parse_params,
     CategoricalToOneHotLayer, 
     GaussianCategoricalLoss,
     GaussianCategoricalSampler, 
@@ -53,17 +58,20 @@ class VAEAC(nn.Module):
     """
     def __init__(
             self,
-            rec_log_prob, 
-            proposal_network, 
-            prior_network,
-            generative_network, 
+            config,
+            networks,
+            device, 
             sigma_mu=1e4, 
             sigma_sigma=1e-4):
         super().__init__()
-        self.rec_log_prob = rec_log_prob
-        self.proposal_network = proposal_network
-        self.prior_network = prior_network
-        self.generative_network = generative_network
+        self.config = config
+        self.device = device    
+
+        self.networks = networks
+        self.rec_log_prob = networks['reconstruction_log_prob']
+        self.proposal_network = networks['proposal_network']
+        self.prior_network = networks['prior_network']
+        self.generative_network = networks['generative_network']
         self.sigma_mu = sigma_mu
         self.sigma_sigma = sigma_sigma
 
@@ -196,7 +204,87 @@ class VAEAC(nn.Module):
             reconstructions_params.append(rec_params.unsqueeze(1))
         return torch.cat(reconstructions_params, 1)
     
+    # impute missing values for all input data
+    def impute(self, train_dataset, M, seed=0):
+        torch.random.manual_seed(seed)
 
+        train_dataloader = DataLoader(
+            train_dataset, 
+            batch_size=self.config["batch_size"],
+            shuffle=False, 
+            num_workers=0,
+            drop_last=False
+        )
+
+        # prepare the store for the imputations
+        results = []
+        for _ in range(M):
+            results.append([])
+
+        # impute missing values for all input data
+        for batch in tqdm(train_dataloader, desc="imputing..."):
+            # if batch size is less than batch_size, extend it with objects
+            # from the beginning of the dataset
+            batch_extended = torch.tensor(batch)
+            batch_extended = extend_batch(
+                batch_extended, train_dataloader, self.config["batch_size"]
+            )
+            
+            batch = batch.to(self.device)
+            batch_extended = batch_extended.to(self.device)
+            mask_extended = torch.isnan(batch_extended).float().to(self.device)
+
+            with torch.no_grad():
+                samples_params = self.generate_samples_params(
+                    batch_extended, mask_extended, M
+                ) # [B, M, D]
+
+                samples_params = samples_params[:batch.shape[0]]
+                
+            # make a copy of batch with zeroed missing values
+            mask = torch.isnan(batch)
+            batch_zeroed_nans = torch.tensor(batch)
+            batch_zeroed_nans[mask] = 0
+            
+            mask = mask.to(self.device)
+            batch_zeroed_nans = batch_zeroed_nans.to(self.device)
+            
+            # impute samples from the generative distributions into the data
+            # and save it to the results
+            
+            for i in range(M):
+                sample_params = samples_params[:, i]
+                sample = self.networks['sampler'](sample_params)
+                sample[(1. - mask.long()).byte()] = 0
+                sample += batch_zeroed_nans
+                results[i].append(torch.tensor(sample, device='cpu'))
+        
+        # concatenate all batches into one [n x M x D] tensor,
+        # where n in the number of objects, M is the number of imputations
+        # and D is the dimensionality of one object
+        for i in range(len(results)):
+            results[i] = torch.cat(results[i]).unsqueeze(1)
+        result = torch.cat(results, 1)
+        result.shape
+
+        imputed = []
+        for i in range(M):
+            imputed_sample = result[:, i, :]
+            imputed_sample *= train_dataset.norm_std[None] 
+            imputed_sample += train_dataset.norm_mean[None]
+            # imputed_sample = pd.DataFrame(imputed_sample, columns=train_dataset.features)
+
+            imputed_sample = pd.DataFrame(imputed_sample, columns=train_dataset.features)
+            imputed_sample[train_dataset.categorical_features] = imputed_sample[train_dataset.categorical_features].astype(int)
+            imputed_sample[train_dataset.integer_features] = imputed_sample[train_dataset.integer_features].round(0).astype(int)
+            
+            imputed.append(
+                torch.tensor(imputed_sample.values, dtype=torch.float32)
+            )
+
+        assert len(imputed) == M
+        
+        return imputed
 #%%
 def get_imputation_networks(one_hot_max_sizes):
     """

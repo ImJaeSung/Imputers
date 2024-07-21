@@ -45,9 +45,9 @@ def MeanAbsoluteError(train_dataset, imputed):
     imputation = imputed.values[:, C:]
     imputation = imputation[train_dataset.mask[:, C:] == 1]
     
-    accuracy = (original == imputation).mean()
-
-    return mae, accuracy
+    error = 1. - (original == imputation).mean()
+    
+    return mae, error
 #%%
 def RootMeanSquaredError(train_dataset, imputed):
     """
@@ -91,9 +91,9 @@ def RootMeanSquaredError(train_dataset, imputed):
     imputation = imputed.values[:, C:]
     imputation = imputation[train_dataset.mask[:, C:] == 1]
     
-    accuracy = (original == imputation).mean()
+    error = 1. - (original == imputation).mean()
 
-    return rmse, accuracy
+    return rmse, error
 #%%
 def elementwise(train_dataset, imputed):
     """continuous"""
@@ -115,7 +115,7 @@ def elementwise(train_dataset, imputed):
     imputation = imputed.values[:, C:]
     imputation = imputation[train_dataset.mask[:, C:] == 1]
     
-    accuracy = (original == imputation).mean()
+    error = 1. - (original == imputation).mean()
     
-    return smape, accuracy
+    return smape, error
 #%%
