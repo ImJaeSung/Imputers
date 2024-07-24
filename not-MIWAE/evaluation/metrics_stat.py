@@ -143,8 +143,8 @@ def WassersteinDistance(train_dataset, imputed, large=False):
     train_ = scaler.transform(train_)
     imputed_ = scaler.transform(imputed_)
     
-    train_ = torch.from_numpy(train_)
-    imputed_ = torch.from_numpy(imputed_)
+    train_ = torch.from_numpy(train_).float()
+    imputed_ = torch.from_numpy(imputed_).float()
     
     OT_solver = SamplesLoss(loss="sinkhorn")
     """

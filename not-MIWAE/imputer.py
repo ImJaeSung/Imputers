@@ -70,7 +70,7 @@ def get_args(debug):
     else:    
         return parser.parse_args()
 #%%
-def main(config):
+def main():
     #%%
     config = vars(get_args(debug=False)) # default configuration
 
