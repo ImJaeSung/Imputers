@@ -3,7 +3,6 @@ import os
 import torch
 import argparse
 import importlib
-import pandas as pd
 
 import modules
 from modules import utils
@@ -47,7 +46,7 @@ def get_args(debug):
     
     parser.add_argument('--ver', type=int, default=1, 
                         help='model version number')
-    parser.add_argument('--dataset', type=str, default='loan', 
+    parser.add_argument('--dataset', type=str, default='abalone', 
                         help="""
                         Dataset options: 
                         abalone, anuran, banknote, breast, concrete,
@@ -147,13 +146,16 @@ def main():
     print(f"Number of Parameters: {num_params / 1000}K")
     wandb.log({"Number of Parameters": num_params / 1000})
     #%%
-    """imputation evaluation"""
+    """imputation"""
     if config["multiple"]:
-        imputed = evaluation_multiple.evaluate(train_dataset, model, M=100)
+        imputed = evaluation_multiple.evaluate(train_dataset, model, M=config['M'])
     else:
-        imputed = model.single_impute(train_dataset)
+        imputed = model.impute(
+            train_dataset, M=config['M'], seed=config["seed"]
+        )
+
         results = evaluation.evaluate(imputed, train_dataset, test_dataset, config)
-    
+        train_dataset.raw_data
     for x, y in results._asdict().items():
         print(f"{x}: {y:.3f}")
         wandb.log({f"{x}": y})

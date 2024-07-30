@@ -31,6 +31,9 @@ def kAnonymization(train_dataset, imputed):
     scaler = StandardScaler().fit(train)
     train = scaler.transform(train)
     imputed = scaler.transform(imputed)
+
+    train = train.astype(np.float32)
+    imputed = imputed.astype(np.float32)
     
     def evaluate_data(data):
         values = [999]
@@ -66,6 +69,9 @@ def kMap(train_dataset, imputed):
     train = scaler.transform(train)
     imputed = scaler.transform(imputed)
     
+    train = train.astype(np.float32)
+    imputed = imputed.astype(np.float32)
+
     values = []
     for n_clusters in [2, 5, 10, 15]:
         if len(train) / n_clusters < 10:
