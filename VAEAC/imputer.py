@@ -1,26 +1,10 @@
 #%%
 import os
-import torch
 import argparse
 import importlib
 import pandas as pd
-import random
-import numpy as np
 
-from argparse import ArgumentParser
-from copy import deepcopy
-from importlib import import_module
-from math import ceil
-from os.path import exists, join
-from sys import stderr
-import importlib
-import random 
-
-import numpy as np
 import torch
-import torch.optim as optim
-from torch.utils.data import DataLoader
-from tqdm import tqdm
 
 from modules.utils import set_random_seed
 from evaluation import evaluation_multiple # multiple imputation
@@ -28,7 +12,6 @@ from evaluation import evaluation # single imputation
 #%%
 import warnings
 warnings.filterwarnings('ignore')
-#from modules.evaluation_imputation import evaluate
 #%%
 import sys
 import subprocess
@@ -66,7 +49,7 @@ def get_args(debug):
     parser.add_argument('--ver', type=int, default=0, 
                         help='model version number')
     
-    parser.add_argument('--dataset', type=str, default='loan', 
+    parser.add_argument('--dataset', type=str, default='abalone', 
                         help="""
                         Dataset options: 
                         loan, kings, banknote, concrete, redwine, 
@@ -92,7 +75,7 @@ def get_args(debug):
 #%%
 def main():
     #%%
-    config = vars(get_args(debug=True))
+    config = vars(get_args(debug=False))
 
     """model load"""
     base_name = f"{config['missing_type']}_{config['missing_rate']}_{config['dataset']}"

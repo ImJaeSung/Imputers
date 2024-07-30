@@ -298,6 +298,7 @@ def get_imputation_networks(one_hot_max_sizes):
     optimization.
     """
 
+    #TODO: model size 
     width = 256
     depth = 10
     latent_dim = 64
