@@ -59,6 +59,7 @@ def get_args(debug):
                         Dataset options: 
                         abalone, anuran, banknote, breast, concrete,
                         kings, letter, loan, redwine, whitewine
+                        speed, nomao, musk, hillvalley, yeast
                         """)
     parser.add_argument("--test_size", default=0.2, type=float,
                         help="the ratio of train test split") 
