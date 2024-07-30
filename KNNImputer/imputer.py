@@ -54,7 +54,7 @@ def get_args(debug):
     parser = argparse.ArgumentParser('parameters')
     parser.add_argument("--seed", type=int, default=0, 
                         help="seed for repeatable results")
-    parser.add_argument('--dataset', type=str, default='whitewine', 
+    parser.add_argument('--dataset', type=str, default='speed', 
                         help="""
                         Dataset options: 
                         abalone, anuran, banknote, breast, concrete,
@@ -79,7 +79,7 @@ def get_args(debug):
 #%% 
 def main():
     #%%
-    config = vars(get_args(debug=False))
+    config = vars(get_args(debug=True))
     config["cuda"] = torch.cuda.is_available()
     device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
     wandb.config.update(config)
@@ -113,7 +113,6 @@ def main():
     model = model_module.KNNI(n_neighbors=config["K"])
     #%%
     """imputation"""
-    train_dataset.data
     imputed = pd.DataFrame(
         model.fit_transform(train_dataset.data), 
         columns=train_dataset.data.columns
