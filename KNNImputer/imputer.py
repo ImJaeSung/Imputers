@@ -54,7 +54,7 @@ def get_args(debug):
     parser = argparse.ArgumentParser('parameters')
     parser.add_argument("--seed", type=int, default=0, 
                         help="seed for repeatable results")
-    parser.add_argument('--dataset', type=str, default='speed', 
+    parser.add_argument('--dataset', type=str, default='musk', 
                         help="""
                         Dataset options: 
                         abalone, anuran, banknote, breast, concrete,
