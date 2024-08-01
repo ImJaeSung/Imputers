@@ -81,7 +81,7 @@ def get_args(debug):
                         help="the ratio of train test split") 
     parser.add_argument('--batch_size', default=64, type=int,
                         help='batch size')  
-    parser.add_argument('--epochs', default=5, type=int,
+    parser.add_argument('--epochs', default=300, type=int,
                         help='Number epochs to train VAEAC.')
     parser.add_argument('--lr', default=3e-4, type=float,
                         help='learning rate to train VAEAC')
