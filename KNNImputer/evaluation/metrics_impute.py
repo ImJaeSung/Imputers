@@ -29,8 +29,6 @@ def MeanAbsoluteError(train_dataset, imputed):
     mean = np.mean(original, axis=0)
     std = np.std(original, axis=0)
 
-    std.replace(0, 1, inplace=True) # except for std=0
-
     original_ = (original - mean) / std
     imputation_ = (imputation - mean) / std
 
@@ -75,8 +73,6 @@ def RootMeanSquaredError(train_dataset, imputed):
 
     mean = np.mean(original, axis=0)
     std = np.std(original, axis=0)
-
-    std.replace(0, 1, inplace=True) # except for std=0
 
     original_ = (original - mean) / std
     imputation_ = (imputation - mean) / std
