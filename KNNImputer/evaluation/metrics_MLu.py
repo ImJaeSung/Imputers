@@ -1,3 +1,4 @@
+#%%
 """
 Reference:
 [1] Reimagining Synthetic Tabular Data Generation through Data-Centric AI: A Comprehensive Benchmark
@@ -19,12 +20,15 @@ def MLu_reg(train_dataset, test_dataset, syndata):
     test = test_dataset.raw_data.copy()
     syndata = syndata.copy()
     
+    assert train.isna().sum().sum() == 0
+    assert test.isna().sum().sum() == 0
+
     """Baseline"""
     print(f"\n(Baseline) Regression: SMAPE...")
     result = []
     for col in train_dataset.continuous_features:
         covariates = [x for x in train.columns if x not in [col]]
-        
+
         regr = RandomForestRegressor(random_state=0, n_jobs=-1)
         regr.fit(train[covariates], train[col])
         pred = regr.predict(test[covariates])
@@ -69,15 +73,21 @@ def MLu_cls(train_dataset, test_dataset, syndata):
     
     mean = train_[continuous].mean()
     std = train_[continuous].std()
+    
+    std.replace(0, 1, inplace=True) # except for std=0
+
     train_[continuous] -= mean
     train_[continuous] /= std
     test_[continuous] -= mean
     test_[continuous] /= std
     syndata_[continuous] -= mean
     syndata_[continuous] /= std
+
+    assert train_.isna().sum().sum() == 0
+    assert test_.isna().sum().sum() == 0
     
     covariates = [x for x in train_.columns if x not in [target]]
-
+    
     """Baseline"""
     performance = []
     print(f"\n(Baseline) Classification: F1...")
@@ -87,7 +97,7 @@ def MLu_cls(train_dataset, test_dataset, syndata):
         ('KNN', KNeighborsClassifier(n_jobs=-1)),
         ('tree', DecisionTreeClassifier(random_state=0)),
         ('RF', RandomForestClassifier(random_state=0)),
-    ]:
+    ]:  
         clf.fit(train_[covariates], train_[target])
         pred = clf.predict(test_[covariates])
         f1 = f1_score(test_[target], pred, average='micro')
@@ -134,5 +144,3 @@ def MLu_cls(train_dataset, test_dataset, syndata):
         return (
             base_cls, syn_cls, model_selection, feature_selection
         )
-#%%
-#%%

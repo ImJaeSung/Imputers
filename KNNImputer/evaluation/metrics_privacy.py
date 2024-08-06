@@ -192,6 +192,9 @@ def AttributeDisclosure(train_dataset, imputed):
     
     mean = train_[continuous].mean()
     std = train_[continuous].std()
+
+    std.replace(0, 1, inplace=True) # except for std=0
+
     train_[continuous] -= mean
     train_[continuous] /= std
     imputed_[continuous] -= mean
