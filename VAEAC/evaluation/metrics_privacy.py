@@ -65,9 +65,6 @@ def kMap(train_dataset, imputed):
     scaler = StandardScaler().fit(train)
     train = scaler.transform(train)
     imputed = scaler.transform(imputed)
-
-    train = np.array(train, dtype=np.float32)
-    imputed = np.array(imputed, dtype=np.float32)
     
     values = []
     for n_clusters in [2, 5, 10, 15]:
@@ -189,6 +186,9 @@ def AttributeDisclosure(train_dataset, imputed):
     
     mean = train_[continuous].mean()
     std = train_[continuous].std()
+
+    std.replace(0, 1, inplace=True) # except for std=0
+
     train_[continuous] -= mean
     train_[continuous] /= std
     imputed_[continuous] -= mean

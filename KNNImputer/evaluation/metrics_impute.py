@@ -2,7 +2,8 @@
 import numpy as np
 # %%
 """
-https://github.com/vanderschaarlab/hyperimpute/blob/main/src/hyperimpute/plugins/utils/metrics.py
+Reference:
+[1] https://github.com/vanderschaarlab/hyperimpute/blob/main/src/hyperimpute/plugins/utils/metrics.py
 """
 def MeanAbsoluteError(train_dataset, imputed):
     """
@@ -29,6 +30,8 @@ def MeanAbsoluteError(train_dataset, imputed):
     mean = np.mean(original, axis=0)
     std = np.std(original, axis=0)
 
+    # std.replace(0, 1, inplace=True) # except for std=0
+
     original_ = (original - mean) / std
     imputation_ = (imputation - mean) / std
 
@@ -45,8 +48,9 @@ def MeanAbsoluteError(train_dataset, imputed):
     imputation = imputed.values[:, C:]
     imputation = imputation[train_dataset.mask[:, C:] == 1]
     
+    # accuracy = (original == imputation).mean()
     error = 1. - (original == imputation).mean()
-    
+
     return mae, error
 #%%
 def RootMeanSquaredError(train_dataset, imputed):
@@ -74,6 +78,8 @@ def RootMeanSquaredError(train_dataset, imputed):
     mean = np.mean(original, axis=0)
     std = np.std(original, axis=0)
 
+    # std.replace(0, 1, inplace=True) # except for std=0
+
     original_ = (original - mean) / std
     imputation_ = (imputation - mean) / std
 
@@ -91,6 +97,7 @@ def RootMeanSquaredError(train_dataset, imputed):
     imputation = imputed.values[:, C:]
     imputation = imputation[train_dataset.mask[:, C:] == 1]
     
+    # accuracy = (original == imputation).mean()
     error = 1. - (original == imputation).mean()
 
     return rmse, error
@@ -104,7 +111,7 @@ def elementwise(train_dataset, imputed):
     imputation = imputed.values[:, :C]
     imputation = imputation[train_dataset.mask[:, :C] == 1]
     
-    smape = np.abs(original - imputation).astype(np.float32)
+    smape = np.abs(original - imputation)
     smape /= (np.abs(original) + np.abs(imputation)) + 1e-6 # numerical stability
     smape = smape.mean()
     
@@ -115,6 +122,7 @@ def elementwise(train_dataset, imputed):
     imputation = imputed.values[:, C:]
     imputation = imputation[train_dataset.mask[:, C:] == 1]
     
+    # accuracy = (original == imputation).mean()
     error = 1. - (original == imputation).mean()
     
     return smape, error
