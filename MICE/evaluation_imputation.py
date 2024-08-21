@@ -41,9 +41,11 @@ def evaluate(train_dataset,seed, M=10,):
         results = []
         iterative_num = seed+20
 
-        imputer = IterativeImputer(imputation_order='ascending',  
-                           random_state=s,  
-                           max_iter=iterative_num) 
+        imputer = IterativeImputer(
+            imputation_order='ascending',  
+            random_state=s,  
+            max_iter=iterative_num
+        ) 
 
         imputed_data = imputer.fit_transform(raw_data)
         imputed = pd.DataFrame(imputed_data, columns = total_column)
