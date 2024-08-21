@@ -25,7 +25,7 @@ except:
     subprocess.run(["wandb", "login"], input=key[0], encoding='utf-8')
     import wandb
 
-project = "KNNImputer" # put your WANDB project name
+project = "KNNImputer_ablation" # put your WANDB project name
 # entity = "wotjd1410" # put your WANDB username
 
 run = wandb.init(
@@ -59,8 +59,7 @@ def get_args(debug):
                         Dataset options: 
                         abalone, anuran, banknote, breast, concrete,
                         kings, letter, loan, redwine, whitewine
-                        speed, nomao, musk, hillvalley, yeast,
-                        madelon, bioresponse
+                        speed, nomao, musk, yeast, madelon
                         """)
     parser.add_argument("--test_size", default=0.2, type=float,
                         help="the ratio of train test split") 
@@ -80,7 +79,7 @@ def get_args(debug):
 #%% 
 def main():
     #%%
-    config = vars(get_args(debug=True))
+    config = vars(get_args(debug=False))
     config["cuda"] = torch.cuda.is_available()
     device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
     wandb.config.update(config)

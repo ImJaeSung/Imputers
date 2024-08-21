@@ -110,6 +110,9 @@ def elementwise(train_dataset, imputed):
     
     imputation = imputed.values[:, :C]
     imputation = imputation[train_dataset.mask[:, :C] == 1]
+
+    original = original.astype(np.float32)
+    imputation = imputation.astype(np.float32)
     
     smape = np.abs(original - imputation)
     smape /= (np.abs(original) + np.abs(imputation)) + 1e-6 # numerical stability
