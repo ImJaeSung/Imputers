@@ -47,14 +47,14 @@ def get_args(debug):
     
     parser.add_argument('--ver', type=int, default=0, 
                         help='model version number')
-    parser.add_argument("--model", type=str, default="gain",
+    parser.add_argument("--model", type=str, default="mean",
                         help="""
                         Model options:
                         mean, median, missforest, mice, softimpute,
                         EM, sinkhorn, gain, miwae, miracle,
                         ReMasker, KNNI, complete, zero
                         """)
-    parser.add_argument('--dataset', type=str, default='anuran', 
+    parser.add_argument('--dataset', type=str, default='loan', 
                         help="""
                         Dataset options: 
                         abalone, anuran, banknote, breast, concrete,
@@ -90,7 +90,7 @@ def main():
     
     assert config["missing_type"] != None
     #%%
-    dataset_module = importlib.import_module('datasets.base_preprocess')
+    dataset_module = importlib.import_module('datasets.preprocess')
     importlib.reload(dataset_module)
     CustomDataset = dataset_module.CustomDataset
 
@@ -106,15 +106,15 @@ def main():
     data_name = f"{config['model']}_{config['seed']}.csv"
     imputed = pd.read_csv(model_dir + "/" + data_name).astype(float)
     #%%
-    results = evaluate(imputed, train_dataset, test_dataset, config)
+    results = evaluate(imputed, train_dataset, test_dataset, config, device)
     for x, y in results._asdict().items():
         print(f"{x}: {y:.3f}")
         wandb.log({f"{x}": y})
         
-    print("Marginal Distribution...")
-    data_name = data_name.replace(".csv", ".pth")
-    data_name = f"{config['missing_rate']}_{config['missing_type']}_{config['dataset']}_" + data_name
-    figs = utils.marginal_plot(train_dataset.raw_data, imputed, config, data_name)
+    # print("Marginal Distribution...")
+    # data_name = data_name.replace(".csv", ".pth")
+    # data_name = f"{config['missing_rate']}_{config['missing_type']}_{config['dataset']}_" + data_name
+    # figs = utils.marginal_plot(train_dataset.raw_data, imputed, config, data_name)
     #%%
     wandb.config.update(config, allow_val_change=True)
     wandb.run.finish()

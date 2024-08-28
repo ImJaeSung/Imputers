@@ -10,7 +10,7 @@ warnings.filterwarnings(action="ignore")
 import torch
 from torch.utils.data import DataLoader
 
-from modules.train import *
+# from modules.train import *
 from modules.utils import set_random_seed, undummify
 import wandb
 
@@ -79,7 +79,7 @@ def main():
     print('Current device is', device)
     wandb.config.update(config)
     #%%
-    dataset_module = importlib.import_module('datasets.base_preprocess')
+    dataset_module = importlib.import_module('datasets.preprocess')
     importlib.reload(dataset_module)
     CustomDataset = dataset_module.CustomDataset
     train_dataset = CustomDataset(
@@ -87,96 +87,7 @@ def main():
         train=True)
     p = train_dataset.data.shape[1]
     #%%
-    from hyperimpute.plugins.imputers import Imputers
-    imputer_list = Imputers().list()
-    print(imputer_list)
-    #%%
-    """configuration"""
-    imputer_list = [
-        ("mean", {"random_state": config["seed"]}),
-        ("median", {"random_state": config["seed"]}),
-        ("missforest", {"random_state": config["seed"]}), 
-        ("mice", {"random_state": config["seed"]}),
-        ("softimpute", {"random_state": config["seed"]}),
-        ("EM", {"random_state": config["seed"]}),
-        ("sinkhorn", {}),
-        ("gain", {"random_state": config["seed"]}),
-        ("miwae", {"n_epochs": 2002, "batch_size": 64, "n_hidden": 128, "latent_size": 1, "random_state": config["seed"]}),
-        ("miracle", {"lr":0.0005, "max_steps": 300, "n_hidden": p, "random_state": config["seed"]})
-    ]
-    #%%
     imputed = []
-    for method, args in imputer_list:
-        print(f"====={method}=====")
-        plugin = Imputers().get(method, **args)
-        X = pd.DataFrame(train_dataset.data, columns=train_dataset.features)
-        X = pd.get_dummies(
-            X, columns=train_dataset.categorical_features, prefix_sep="###"
-        ).astype(float)
-        out = plugin.fit_transform(X.copy())
-        out.columns = X.columns
-        out = undummify(out)
-        out.columns = train_dataset.features
-            
-        """un-standardization of synthetic data"""
-        for col, scaler in train_dataset.scalers.items():
-            out[[col]] = scaler.inverse_transform(out[[col]])
-            
-        # post-process
-        out[train_dataset.categorical_features] = out[train_dataset.categorical_features].astype(int)
-        out[train_dataset.integer_features] = out[train_dataset.integer_features].round(0).astype(int)
-        imputed.append((method, out))
-        display(out.head())
-    #%%
-    """ReMasker""" # third-party
-    remasker_module = importlib.import_module('remasker.remasker_impute')
-    importlib.reload(remasker_module)
-    method = "ReMasker"
-    print(f"====={method}=====")
-    imputer = remasker_module.ReMasker()
-    
-    X = pd.DataFrame(train_dataset.data, columns=train_dataset.features)
-    X = pd.get_dummies(
-        X, columns=train_dataset.categorical_features, prefix_sep="###"
-    ).astype(float)
-    out = imputer.fit_transform(X)
-    out = pd.DataFrame(out, columns=X.columns)
-    out = undummify(out)
-    
-    """un-standardization of synthetic data"""
-    for col, scaler in train_dataset.scalers.items():
-        out[[col]] = scaler.inverse_transform(out[[col]])
-    
-    # post-process
-    out[train_dataset.categorical_features] = out[train_dataset.categorical_features].astype(int)
-    out[train_dataset.integer_features] = out[train_dataset.integer_features].round(0).astype(int)
-    imputed.append((method, out))
-    display(out.head())
-    #%%
-    """KNN Imputer"""
-    from sklearn.impute import KNNImputer
-    method = "KNNI"
-    print(f"====={method}=====")
-    knnimputer = KNNImputer(n_neighbors=5)
-    
-    X = pd.DataFrame(train_dataset.data, columns=train_dataset.features)
-    X = pd.get_dummies(
-        X, columns=train_dataset.categorical_features, prefix_sep="###"
-    ).astype(float)
-    out = knnimputer.fit_transform(X)
-    out = pd.DataFrame(out, columns=X.columns)
-    out = undummify(out)
-    
-    """un-standardization of synthetic data"""
-    for col, scaler in train_dataset.scalers.items():
-        out[[col]] = scaler.inverse_transform(out[[col]])
-    
-    # post-process
-    out[train_dataset.categorical_features] = out[train_dataset.categorical_features].astype(int)
-    out[train_dataset.integer_features] = out[train_dataset.integer_features].round(0).astype(int)
-    imputed.append((method, out))
-    display(out.head())
-    #%%
     """Complete"""
     print(f"=====complete=====")
     out = train_dataset.raw_data
@@ -201,6 +112,97 @@ def main():
     imputed.append(("zero", out))
     display(out.head())
     #%%
+    from hyperimpute.plugins.imputers import Imputers
+    imputer_list = Imputers().list()
+    print(imputer_list)
+    #%%
+    """configuration"""
+    imputer_list = [
+        ("mean", {"random_state": config["seed"]}),
+        ("median", {"random_state": config["seed"]}),
+        ("missforest", {"random_state": config["seed"]}), 
+        # ("mice", {"random_state": config["seed"]}),
+        ("softimpute", {"random_state": config["seed"]}),
+        ("EM", {"random_state": config["seed"]}),
+        ("sinkhorn", {}),
+        # ("gain", {"random_state": config["seed"]}),
+        # ("miwae", {"n_epochs": 2002, "batch_size": 64, "n_hidden": 128, "latent_size": 1, "random_state": config["seed"]}),
+        ("miracle", {"lr":0.0005, "max_steps": 300, "n_hidden": p, "random_state": config["seed"]})
+    ]
+    #%%
+    for method, args in imputer_list:
+        print(f"====={method}=====")
+        plugin = Imputers().get(method, **args)
+        X = pd.DataFrame(train_dataset.data, columns=train_dataset.features)
+        X = pd.get_dummies(
+            X, columns=train_dataset.categorical_features, prefix_sep="###"
+        ).astype(float)
+        out = plugin.fit_transform(X.copy())
+        out.columns = X.columns
+        out = undummify(out)
+        out.columns = train_dataset.features
+            
+        """un-standardization of synthetic data"""
+        for col, scaler in train_dataset.scalers.items():
+            out[[col]] = scaler.inverse_transform(out[[col]])
+            
+        # post-process
+        out[train_dataset.categorical_features] = out[train_dataset.categorical_features].astype(int)
+        out[train_dataset.integer_features] = out[train_dataset.integer_features].round(0).astype(int)
+        imputed.append((method, out))
+        display(out.head())
+    #%%
+    """ReMasker""" # third-party
+    # remasker_module = importlib.import_module('remasker.remasker_impute')
+    # importlib.reload(remasker_module)
+    # method = "ReMasker"
+    # print(f"====={method}=====")
+    # imputer = remasker_module.ReMasker()
+    
+    # X = pd.DataFrame(train_dataset.data, columns=train_dataset.features)
+    # X = pd.get_dummies(
+    #     X, columns=train_dataset.categorical_features, prefix_sep="###"
+    # ).astype(float)
+    # out = imputer.fit_transform(X)
+    # out = pd.DataFrame(out, columns=X.columns)
+    # out = undummify(out)
+    
+    """un-standardization of synthetic data"""
+    # for col, scaler in train_dataset.scalers.items():
+    #     out[[col]] = scaler.inverse_transform(out[[col]])
+    
+    # # post-process
+    # out[train_dataset.categorical_features] = out[train_dataset.categorical_features].astype(int)
+    # out[train_dataset.integer_features] = out[train_dataset.integer_features].round(0).astype(int)
+    # imputed.append((method, out))
+    # display(out.head())
+    #%%
+    """KNN Imputer"""
+    # from sklearn.impute import KNNImputer
+    # method = "KNNI"
+    # print(f"====={method}=====")
+    # knnimputer = KNNImputer(n_neighbors=5)
+    
+    # X = pd.DataFrame(train_dataset.data, columns=train_dataset.features)
+    # X = pd.get_dummies(
+    #     X, columns=train_dataset.categorical_features, prefix_sep="###"
+    # ).astype(float)
+    # out = knnimputer.fit_transform(X)
+    # out = pd.DataFrame(out, columns=X.columns)
+    # out = undummify(out)
+    
+    """un-standardization of synthetic data"""
+    # for col, scaler in train_dataset.scalers.items():
+    #     out[[col]] = scaler.inverse_transform(out[[col]])
+    
+    # # post-process
+    # out[train_dataset.categorical_features] = out[train_dataset.categorical_features].astype(int)
+    # out[train_dataset.integer_features] = out[train_dataset.integer_features].round(0).astype(int)
+    # imputed.append((method, out))
+    # display(out.head())
+    #%%
+
+    #%%
     """model save"""
     base_name = f"baseline_{config['missing_rate']}_{config['missing_type']}_{config['dataset']}"
     model_dir = f"./assets/models/{base_name}/"
@@ -213,7 +215,7 @@ def main():
     for method, data in imputed:
         data.to_csv(f"{model_dir}/{method}_{config['seed']}.csv", index=None)
         artifact.add_file(f"{model_dir}/{method}_{config['seed']}.csv")
-    artifact.add_file('./hyperimpute_.py')
+    artifact.add_file('./imputer.py')
     wandb.log_artifact(artifact)
     #%%
     wandb.config.update(config, allow_val_change=True)
