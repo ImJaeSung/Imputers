@@ -312,8 +312,8 @@ def fit_intercepts(X, coeffs, p, self_mask=False):
     return intercepts
 
 
-def generate_mask(X_true, config, seed=0):
-    set_random_seed(seed) # for reproducibility
+def generate_mask(X_true, config):
+    set_random_seed(config["seed"]) # for reproducibility
 
     p_obs = 0.3 # Proportion of variables that are fully observed (MAR & MNAR model), set to 0.3 according to OTImputer
     q_mnar = 0.75 # Quantile that will have imps (MNAR quantiles model), set to 0.75 according to OTImputer
