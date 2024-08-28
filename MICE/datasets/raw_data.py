@@ -27,6 +27,21 @@ def load_raw_data(dataset):
             "Rings"
         ]
         integer_features = []
+        ClfTarget = "Rings"
+        
+    elif dataset == "anuran":
+        data = pd.read_csv('./data/Frogs_MFCCs.csv')
+        
+        assert data.isna().sum().sum() == 0
+        
+        continuous_features = [x for x in data.columns if x.startswith("MFCCs_")]
+        categorical_features = [
+            'Family',
+            'Genus',
+            'Species'
+        ]
+        integer_features = []
+        ClfTarget = "Species"
     
     elif dataset == "banknote":
         data = pd.read_csv('./data/data_banknote_authentication.txt', header=None)
@@ -41,6 +56,7 @@ def load_raw_data(dataset):
             'class',
         ]
         integer_features = []
+        ClfTarget = "class"
         
     elif dataset == "breast":
         data = pd.read_csv('./data/wdbc.data', header=None)
@@ -73,6 +89,131 @@ def load_raw_data(dataset):
             "Diagnosis"
         ]
         integer_features = []
+        ClfTarget = "Diagnosis"
+        
+    elif dataset == "concrete":
+        data = pd.read_csv('./data/Concrete_Data.csv')
+        columns = [
+            "Cement",
+            "Blast Furnace Slag",
+            "Fly Ash",
+            "Water",
+            "Superplasticizer",
+            "Coarse Aggregate",
+            "Fine Aggregate",
+            "Age",
+            "Concrete compressive strength"
+        ]
+        data.columns = columns
+        
+        assert data.isna().sum().sum() == 0
+        
+        columns.remove("Age")
+        continuous_features = columns
+        categorical_features = [
+            "Age",
+        ]
+        integer_features = []
+        ClfTarget = "Age"
+        
+    elif dataset == "kings":
+        data = pd.read_csv('./data/kc_house_data.csv')
+        
+        continuous_features = [
+            'price', 
+            'sqft_living',
+            'sqft_lot',
+            'sqft_above',
+            'sqft_basement',
+            'yr_built',
+            'yr_renovated',
+            'lat',
+            'long',
+            'sqft_living15',
+            'sqft_lot15',
+        ]
+        categorical_features = [
+            'bedrooms',
+            'bathrooms',
+            'floors',
+            'waterfront',
+            'view',
+            'condition',
+            'grade', 
+        ]
+        integer_features = [
+            'price',
+            'sqft_living',
+            'sqft_lot',
+            'sqft_above',
+            'sqft_basement',
+            'yr_built',
+            'yr_renovated',
+            'sqft_living15',
+            'sqft_lot15',
+        ]
+        ClfTarget = "grade"
+        
+    elif dataset == "letter":
+        data = pd.read_csv('./data/letter-recognition.data', header=None)
+        columns = [
+            "lettr",
+            "x-box",
+            "y-box",
+            "width",
+            "high",
+            "onpix",
+            "x-bar",
+            "y-bar",
+            "x2bar",
+            "y2bar",
+            "xybar",
+            "x2ybr",
+            "xy2br",
+            "x-ege",
+            "xegvy",
+            "y-ege",
+            "yegvx",
+        ]
+        data.columns = columns
+        
+        assert data.isna().sum().sum() == 0
+        
+        columns.remove("lettr")
+        continuous_features = columns
+        categorical_features = [
+            "lettr"
+        ]
+        integer_features = columns
+        ClfTarget = "lettr"
+        
+    elif dataset == "loan":
+        data = pd.read_csv('./data/Bank_Personal_Loan_Modelling.csv')
+        
+        continuous_features = [
+            'Age',
+            'Experience',
+            'Income', 
+            'CCAvg',
+            'Mortgage',
+        ]
+        categorical_features = [
+            'Family',
+            'Personal Loan',
+            'Securities Account',
+            'CD Account',
+            'Online',
+            'CreditCard'
+        ]
+        integer_features = [
+            'Age',
+            'Experience',
+            'Income', 
+            'Mortgage'
+        ]
+        data = data[continuous_features + categorical_features]
+        data = data.dropna()
+        ClfTarget = "Personal Loan"
         
     elif dataset == "redwine":
         data = pd.read_csv('./data/winequality-red.csv', delimiter=";")
@@ -86,6 +227,7 @@ def load_raw_data(dataset):
             "quality"
         ]
         integer_features = []
+        ClfTarget = "quality"
         
     elif dataset == "whitewine":
         data = pd.read_csv('./data/winequality-white.csv', delimiter=";")
@@ -99,5 +241,6 @@ def load_raw_data(dataset):
             "quality"
         ]
         integer_features = []
-
-    return data, continuous_features, categorical_features, integer_features
+        ClfTarget = "quality"
+        
+    return data, continuous_features, categorical_features, integer_features, ClfTarget
