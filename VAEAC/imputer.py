@@ -100,21 +100,14 @@ def main():
     importlib.reload(dataset_module)
     CustomDataset = dataset_module.CustomDataset
     
-    if config["multiple"]: 
-        config["test_size"] = 0 # not using test data in multiple imputation
-        train_dataset = CustomDataset(
-            config,
-            train=True
-        )
-    else:
-        train_dataset = CustomDataset(
-            config,
-            train=True
-        )
-        test_dataset = CustomDataset(
-            config,
-            train=False,
-        )
+    train_dataset = CustomDataset(
+        config,
+        train=True
+    )
+    test_dataset = CustomDataset(
+        config,
+        train=False,
+    )
     #%%
     """model"""
     model_module = importlib.import_module('modules.model')
@@ -170,9 +163,7 @@ def main():
         imputed = torch.cat((cont_imputed, disc_imputed), dim=1) # [M, N, P]
         imputed = pd.DataFrame(imputed, columns=train_dataset.features)
 
-        results = evaluation.evaluate(
-            imputed, train_dataset, test_dataset, config
-        )
+        results = evaluation.evaluate(imputed, train_dataset, test_dataset, config)
     
     for x, y in results._asdict().items():
         print(f"{x}: {y:.3f}")

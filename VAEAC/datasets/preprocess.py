@@ -47,7 +47,7 @@ class CustomDataset(Dataset):
         # Decide that which features are continuous or categorical by nunique()
         self.one_hot_max_sizes = [1]*self.num_continuous_features + self.num_categories
         
-        # Genrating missing values
+        # Generating missing values
         if config["missing_type"] != "None":
             mask = generate_mask(
                 torch.from_numpy(data.values).float(), 
