@@ -1,20 +1,13 @@
 """
 Reference: https://github.com/hezgit/TDM/blob/main/utils.py
 """
-
+#%%
 import torch
 import numpy as np
-import random
+
 from scipy import optimize
 
-def set_random_seed(seed):
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)  
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-    np.random.seed(seed)
-    random.seed(seed) 
+from modules.utils import set_random_seed
 
 #### Quantile ######
 def quantile(X, q, dim=None):
@@ -319,19 +312,19 @@ def fit_intercepts(X, coeffs, p, self_mask=False):
     return intercepts
 
 
-def generate_mask(X_true, missing_prop, mask_type, seed):
-    set_random_seed(seed) # for reproducibility
+def generate_mask(X_true, config):
+    set_random_seed(config["seed"]) # for reproducibility
 
     p_obs = 0.3 # Proportion of variables that are fully observed (MAR & MNAR model), set to 0.3 according to OTImputer
     q_mnar = 0.75 # Quantile that will have imps (MNAR quantiles model), set to 0.75 according to OTImputer
-    if mask_type == 'MAR':
-        mask = MAR_mask(X_true, missing_prop, p_obs).double()
-    elif mask_type == 'MNARL':
-        mask = MNAR_mask_logistic(X_true, missing_prop, p_obs).double()
-    elif mask_type == "MNARQ":
-        mask = MNAR_mask_quantiles(X_true, missing_prop, q_mnar, 1-p_obs,
+    if config["missing_type"] == 'MAR':
+        mask = MAR_mask(X_true, config["missing_rate"], p_obs).double()
+    elif config["missing_type"] == 'MNARL':
+        mask = MNAR_mask_logistic(X_true, config["missing_rate"], p_obs).double()
+    elif config["missing_type"] == "MNARQ":
+        mask = MNAR_mask_quantiles(X_true, config["missing_rate"], q_mnar, 1-p_obs,
                                 cut='both', MCAR=False).double()
     else:
-        mask = (torch.rand(X_true.shape) < missing_prop).double()
+        mask = (torch.rand(X_true.shape) < config["missing_rate"]).double()
         
     return mask.cpu().numpy()

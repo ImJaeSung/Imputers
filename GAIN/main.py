@@ -1,14 +1,12 @@
 #%%
 import os
-import torch
 import argparse
 import importlib
-
+#%%
 import torch
 from torch.utils.data import DataLoader
-
-from evaluation import evaluation
-from evaluation import evaluation_multiple
+import torch.optim as optim
+#%%
 from modules.utils import set_random_seed
 #%%
 import sys
@@ -17,7 +15,7 @@ try:
     import wandb
 except:
     subprocess.check_call([sys.executable, "-m", "pip", "install", "wandb"])
-    with open("../wandb_api.txt", "r") as f:
+    with open("./wandb_api.txt", "r") as f:
         key = f.readlines()
     subprocess.run(["wandb", "login"], input=key[0], encoding='utf-8')
     import wandb
@@ -28,9 +26,10 @@ project = "GAIN" # put your WANDB project name
 run = wandb.init(
     project=project, 
     # entity=entity, 
-    tags=["imputation"], # put tags of this python project
+    tags=["train"], # put tags of this python project
 )
-# %%
+
+#%%
 def str2bool(v):
     if isinstance(v, bool):
         return v
@@ -40,13 +39,11 @@ def str2bool(v):
         return False
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
-    
 #%%
-def get_args(debug=False):
+def get_args(debug):
     parser = argparse.ArgumentParser('parameters')
-    
-    parser.add_argument('--ver', type=int, default=0, 
-                        help='model version number')
+    parser.add_argument("--seed", default=0, type=int,
+                        help="seed for repeatable results") 
     
     parser.add_argument('--dataset', type=str, default='loan', 
                         help="""
@@ -54,43 +51,38 @@ def get_args(debug=False):
                         loan, kings, banknote, concrete, redwine, 
                         whitewine, breast, letter, abalone, anuran
                         """)
-    
+
+
     parser.add_argument("--missing_type", default="MCAR", type=str,
                         help="how to generate missing: MCAR, MAR, MNARL, MNARQ") 
     parser.add_argument("--missing_rate", default=0.3, type=float,
-                        help="missing rate") 
+                        help="missing rate")
+    
+    parser.add_argument("--test_size", default=0.2, type=float,
+                        help="the ratio of train test split") 
+    parser.add_argument('--batch_size', default=128, type=int,
+                        help='batch size')  
+    parser.add_argument('--epochs', default=10000, type=int,
+                        help='Number epochs to train GAIN.')
+    parser.add_argument('--lr', default=0.001, type=float,
+                        help='learning rate to train VAEAC')
+    
     parser.add_argument('--hint_rate', default=0.9, type=float,
                          help='hint probability')
-
-    parser.add_argument('--multiple', default=False, type=str2bool,
-                        help="multiple imputation")
-    parser.add_argument("--M", default=100, type=int,
-                        help="the number of multiple imputation")
-
+    parser.add_argument('--alpha', default=100, type=float,
+                        help='hyperparameter')
     if debug:
         return parser.parse_args(args=[])
-    else:    
+    else:
         return parser.parse_args()
-    
+
 #%%
 def main():
     #%%
-    config = vars(get_args(debug=False))
-    #%%
-    """model load"""
-    base_name = f"{config['missing_type']}_{config['missing_rate']}_{config['hint_rate']}_{config['dataset']}"
-    model_name = f"GAIN_{base_name}"
-    artifact = wandb.use_artifact(
-        f"{project}/{model_name}:v{config['ver']}",
-        type='model')
-    for key, item in artifact.metadata.items():
-        config[key] = item
-    model_dir = artifact.download()
-    model_name = [x for x in os.listdir(model_dir) if x.endswith(f"{config['seed']}.pth")][0]
-    #%%
-    config["cuda"] = torch.cuda.is_available()
-    device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
-    set_random_seed(config["seed"])
+    config = vars(get_args(debug=False)) # default configuration
+    set_random_seed(config['seed'])
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print('Current device is', device)
     wandb.config.update(config)
 
     assert config["missing_type"] != None
@@ -99,16 +91,10 @@ def main():
     dataset_module = importlib.import_module('datasets.preprocess')
     importlib.reload(dataset_module)
     CustomDataset = dataset_module.CustomDataset
-    
     train_dataset = CustomDataset(
-        config,
+        config, 
         train=True
     )
-    test_dataset = CustomDataset(
-        config,
-        train=False,
-    )
-
     train_dataloader = DataLoader(
         train_dataset, 
         batch_size=config["batch_size"],
@@ -119,46 +105,56 @@ def main():
     """model"""
     model_module = importlib.import_module('modules.model')
     importlib.reload(model_module)
+    D = model_module.Discriminator(config).to(device)
     G = model_module.Generator(config).to(device)
-    
-    if config["cuda"]:
-        G.load_state_dict(
-            torch.load(
-                model_dir + "/" + model_name
-            )
-        )
-    else:
-        G.load_state_dict(
-            torch.load(
-                model_dir + "/" + model_name,
-                map_location=torch.device("cpu"),
-            )
-        )
-    G.eval()
+    #%%
+    D.train()
+    G.train()
+
+    optimizer_D = optim.Adam(D.parameters(), lr=config["lr"])
+    optimizer_G = optim.Adam(G.parameters(), lr=config["lr"])
     #%%
     """number of model parameters"""
     count_parameters = lambda model: sum(p.numel() for p in model.parameters() if p.requires_grad)
+    D_params = count_parameters(D)
     G_params = count_parameters(G)
-    print(f"Number of Parameters: {G_params/1000:.1f}M")
-    wandb.log({"Number of Parameters": G_params / 1000})
+    print(f"Number of Parameters: {D_params/1000:.1f}K")
+    print(f"Number of Parameters: {G_params/1000:.1f}K")
     #%%
-    """imputation"""
-    if config["multiple"]:
-        results = evaluation_multiple.evaluate(
-            train_dataset, train_dataloader, G, M=config["M"]
-        )
-    else:
-        imputed = G.impute(train_dataset, config, device)
-        results = evaluation.evaluate(imputed, train_dataset, test_dataset, config, device)
-    
+    """train"""
+    train_module = importlib.import_module('modules.train')
+    importlib.reload(train_module)
+    train_module.train_function(
+        D, 
+        G, 
+        config, 
+        optimizer_D,
+        optimizer_G,
+        train_dataloader, 
+        device
+    )
     #%%
-    for x, y in results._asdict().items():
-        print(f"{x}: {y:.3f}")
-        wandb.log({f"{x}": y})
+    """model save"""
+    base_name = f"{config['missing_type']}_{config['missing_rate']}_{config['hint_rate']}_{config['dataset']}"
+    model_dir = f"./assets/models/{base_name}"
+    if not os.path.exists(model_dir):
+        os.makedirs(model_dir)
+    model_name = f"GAIN_{base_name}_{config['seed']}"
+
+    torch.save(G.state_dict(), f"./{model_dir}/{model_name}.pth")
+    artifact = wandb.Artifact(
+        "_".join(model_name.split("_")[:-1]), 
+        type='model',
+        metadata=config) 
+    artifact.add_file(f"./{model_dir}/{model_name}.pth")
+    artifact.add_file('./main.py')
+    artifact.add_file('./modules/model.py')
+    artifact.add_file('./modules/train.py')
+    wandb.log_artifact(artifact)
     #%%
     wandb.config.update(config, allow_val_change=True)
     wandb.run.finish()
-#%% 
-if __name__ == "__main__":
-    main()  
-#%% 
+#%%
+if __name__ == '__main__':
+    main()
+#%%
