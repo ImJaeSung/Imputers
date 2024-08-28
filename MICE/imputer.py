@@ -10,7 +10,7 @@ import torch
 
 from modules.utils import set_random_seed, undummify
 from evaluation import evaluation
-from evaluation import evaluation_imputation
+from evaluation import evaluation_multiple
 #%%
 import sys
 import subprocess
@@ -106,7 +106,7 @@ def main():
     #%%
     """imputation"""
     if config["multiple"]:
-        results = evaluation_imputation.evaluate(train_dataset, config, M=config["M"])
+        results = evaluation_multiple.evaluate(train_dataset, config, M=config["M"])
 
     else:
         model_module = importlib.import_module('modules.model')
