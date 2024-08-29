@@ -119,7 +119,7 @@ def MaximumMeanDiscrepancy(train_dataset, imputed, large=False):
     MMD = XX.mean() + YY.mean() - 2 * XY.mean()
     return MMD
 #%%
-def WassersteinDistance(train_dataset, imputed, large=False):
+def WassersteinDistance(train_dataset, imputed, device):
     """
     Joint statistical fidelity: Wasserstein Distance
     : lower is better
@@ -130,10 +130,6 @@ def WassersteinDistance(train_dataset, imputed, large=False):
     train = train[train_dataset.continuous_features]
     imputed = imputed[train_dataset.continuous_features]
     
-    if large:
-        train = train.sample(frac=0.05, random_state=0)
-        imputed = imputed.sample(frac=0.05, random_state=0)
-    
     train_ = train.values.reshape(len(train), -1)
     imputed_ = imputed.values.reshape(len(imputed), -1)
     
@@ -143,14 +139,10 @@ def WassersteinDistance(train_dataset, imputed, large=False):
     train_ = scaler.transform(train_)
     imputed_ = scaler.transform(imputed_)
     
-    train_ = torch.from_numpy(train_)
-    imputed_ = torch.from_numpy(imputed_)
+    train_ = torch.from_numpy(train_).to(device)
+    imputed_ = torch.from_numpy(imputed_).to(device)
     
     OT_solver = SamplesLoss(loss="sinkhorn")
-    """
-    Compute WD for 4000 samples and average due to the following error:
-    "NameError: name 'generic_logsumexp' is not defined"
-    """
     if len(train_) > 4000:
         WD = []
         iter_ = len(train_) // 4000 + 1
@@ -162,3 +154,36 @@ def WassersteinDistance(train_dataset, imputed, large=False):
         WD = OT_solver(train_, imputed_).cpu().numpy().item()
     return WD
 #%%
+def phi(s, D):
+    return (1 + (4 * s) / (2 * D - 3)) ** (-1 / 2)
+#%%
+def CramerWoldDistance(train_dataset, imputed, config, device):
+    """
+    Joint statistical fidelity: Cramer-Wold Distance
+    : lower is better
+    """
+    
+    train = train_dataset.raw_data
+    # only continuous
+    train = train[train_dataset.continuous_features]
+    imputed = imputed[train_dataset.continuous_features]
+    if config["dataset"] == "adult": ### OOM
+        train = train.sample(frac=0.5, random_state=42)
+        imputed = imputed.sample(frac=0.5, random_state=42)
+    
+    scaler = StandardScaler().fit(train)
+    train_ = scaler.transform(train)
+    imputed_ = scaler.transform(imputed)
+    train_ = torch.from_numpy(train_).to(device)
+    imputed_ = torch.from_numpy(imputed_).to(device)
+    
+    gamma_ = (4 / (3 * train_.size(0))) ** (2 / 5)
+    
+    cw1 = torch.cdist(train_, train_) ** 2 
+    cw2 = torch.cdist(imputed_, imputed_) ** 2 
+    cw3 = torch.cdist(train_, imputed_) ** 2 
+    cw = phi(cw1 / (4 * gamma_), D=train_.size(1)).sum()
+    cw += phi(cw2 / (4 * gamma_), D=train_.size(1)).sum()
+    cw += -2 * phi(cw3 / (4 * gamma_), D=train_.size(1)).sum()
+    cw /= (2 * train_.size(0) ** 2 * torch.tensor(torch.pi * gamma_).sqrt())
+    return cw.cpu().numpy().item()

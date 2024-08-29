@@ -5,7 +5,7 @@ import numpy as np
 Reference:
 [1] https://github.com/vanderschaarlab/hyperimpute/blob/main/src/hyperimpute/plugins/utils/metrics.py
 """
-def MeanAbsoluteError(train_dataset, imputed):
+def NMAE(train_dataset, imputed):
     """
     Mean Absolute Error (MAE) between imputed variables and ground truth.
 
@@ -26,20 +26,14 @@ def MeanAbsoluteError(train_dataset, imputed):
     """continuous"""
     original = train_dataset.raw_data.values[:, :C]
     imputation = imputed.values[:, :C]
+    
+    original_ = original[train_dataset.mask[:, :C] == 1]
+    imputation_ = imputation[train_dataset.mask[:, :C] == 1]
 
-    mean = np.mean(original, axis=0)
-    std = np.std(original, axis=0)
-
-    # std.replace(0, 1, inplace=True) # except for std=0
-
-    original_ = (original - mean) / std
-    imputation_ = (imputation - mean) / std
-
-    original_ = original_[train_dataset.mask[:, :C] == 1]
-    imputation_ = imputation_[train_dataset.mask[:, :C] == 1]
-
-    mae = np.absolute(original_ - imputation_).sum() 
-    mae /= train_dataset.mask[:, :C].sum()
+    mae = np.mean(np.absolute(original_ - imputation_), axis=0)
+    std = np.std(original_, axis=0)
+    
+    nmae = mae / std
 
     """categorical"""
     original = train_dataset.raw_data.values[:, C:]
@@ -48,12 +42,11 @@ def MeanAbsoluteError(train_dataset, imputed):
     imputation = imputed.values[:, C:]
     imputation = imputation[train_dataset.mask[:, C:] == 1]
     
-    # accuracy = (original == imputation).mean()
     error = 1. - (original == imputation).mean()
 
-    return mae, error
+    return nmae, error
 #%%
-def RootMeanSquaredError(train_dataset, imputed):
+def NRMSE(train_dataset, imputed):
     """
     Root Mean Squared Error (RMSE) between imputed variables and ground truth
 
@@ -74,21 +67,14 @@ def RootMeanSquaredError(train_dataset, imputed):
     """continuous"""
     original = train_dataset.raw_data.values[:, :C]
     imputation = imputed.values[:, :C]
-
-    mean = np.mean(original, axis=0)
-    std = np.std(original, axis=0)
-
-    # std.replace(0, 1, inplace=True) # except for std=0
-
-    original_ = (original - mean) / std
-    imputation_ = (imputation - mean) / std
-
-    original_ = original_[train_dataset.mask[:, :C] == 1]
-    imputation_ = imputation_[train_dataset.mask[:, :C] == 1]
     
-    rmse = ((original_ - imputation_) ** 2).sum()
-    rmse /= train_dataset.mask[:, :C].sum()
-    rmse = np.sqrt(rmse)
+    original_ = original[train_dataset.mask[:, :C] == 1]
+    imputation_ = imputation[train_dataset.mask[:, :C] == 1]
+
+    rmse = np.mean(((original_ - imputation_) ** 2), axis=0)
+    std = np.std(original_, axis=0)
+    
+    nrmse = np.sqrt(rmse / std**2)
 
     """categorical"""
     original = train_dataset.raw_data.values[:, C:]
@@ -97,12 +83,11 @@ def RootMeanSquaredError(train_dataset, imputed):
     imputation = imputed.values[:, C:]
     imputation = imputation[train_dataset.mask[:, C:] == 1]
     
-    # accuracy = (original == imputation).mean()
     error = 1. - (original == imputation).mean()
 
-    return rmse, error
+    return nrmse, error
 #%%
-def elementwise(train_dataset, imputed):
+def SMAPE(train_dataset, imputed):
     """continuous"""
     C = train_dataset.num_continuous_features
     original = train_dataset.raw_data.values[:, :C]
@@ -110,9 +95,6 @@ def elementwise(train_dataset, imputed):
     
     imputation = imputed.values[:, :C]
     imputation = imputation[train_dataset.mask[:, :C] == 1]
-
-    original = original.astype(np.float32)
-    imputation = imputation.astype(np.float32)
     
     smape = np.abs(original - imputation)
     smape /= (np.abs(original) + np.abs(imputation)) + 1e-6 # numerical stability
@@ -125,7 +107,6 @@ def elementwise(train_dataset, imputed):
     imputation = imputed.values[:, C:]
     imputation = imputation[train_dataset.mask[:, C:] == 1]
     
-    # accuracy = (original == imputation).mean()
     error = 1. - (original == imputation).mean()
     
     return smape, error

@@ -25,7 +25,7 @@ except:
     subprocess.run(["wandb", "login"], input=key[0], encoding='utf-8')
     import wandb
 
-project = "KNNImputer_ablation" # put your WANDB project name
+project = "KNNI" # put your WANDB project name
 # entity = "wotjd1410" # put your WANDB username
 
 run = wandb.init(
@@ -54,7 +54,7 @@ def get_args(debug):
     parser = argparse.ArgumentParser('parameters')
     parser.add_argument("--seed", type=int, default=0, 
                         help="seed for repeatable results")
-    parser.add_argument('--dataset', type=str, default='musk', 
+    parser.add_argument('--dataset', type=str, default='loan', 
                         help="""
                         Dataset options: 
                         abalone, anuran, banknote, breast, concrete,
@@ -128,7 +128,7 @@ def main():
     imputed[train_dataset.integer_features] = imputed[train_dataset.integer_features].round(0).astype(int)
     display(imputed.head())
 
-    results = evaluation.evaluate(imputed, train_dataset, test_dataset, config)
+    results = evaluation.evaluate(imputed, train_dataset, test_dataset, config, device)
     for x, y in results._asdict().items():
         print(f"{x}: {y:.3f}")
         wandb.log({f"{x}": y})
