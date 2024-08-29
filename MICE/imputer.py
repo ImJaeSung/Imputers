@@ -5,6 +5,7 @@ import argparse
 import importlib
 import pandas as pd
 import numpy as np
+from IPython.display import display
 
 import torch
 
@@ -128,7 +129,7 @@ def main():
         # post-process
         imputed[train_dataset.categorical_features] = imputed[train_dataset.categorical_features].astype(int)
         imputed[train_dataset.integer_features] = imputed[train_dataset.integer_features].round(0).astype(int)
-        # display(imputed.head())
+        display(imputed.head())
 
         results = evaluation.evaluate(imputed, train_dataset, test_dataset, config, device)
     for x, y in results._asdict().items():
