@@ -9,5 +9,5 @@ This repository is unofficial implementation of following papers with PyTorch an
 - [not-MIWAE: Deep Generative Modelling with Missing not at Random Data](https://openreview.net/forum?id=tu29GQT0JFy) (`not-MIWAE`)
 - [Variational Autoencoder with Arbitrary Conditioning](https://openreview.net/forum?id=SyxtJh0qYm) (`VAEAC`) 
 - [ReMasker: Imputing Tabular Data with Masked Autoencoding](https://openreview.net/forum?id=KI9NqjLVDT) (`remasker`)
-- [MIRACLE: Causally-Aware Imputation via Learning Missing Data Mechanisms] (https://openreview.net/forum?id=GzeqcAUFGl0) (`Base_Imputers`) 
+- [MIRACLE: Causally-Aware Imputation via Learning Missing Data Mechanisms](https://openreview.net/forum?id=GzeqcAUFGl0) (`Base_Imputers`) 
 - [Missing Data Imputation using Optimal Transport](https://icml.cc/media/Slides/icml/2020/virtual(no-parent)-16-19-00UTC-6455-missing_data_im.pdf) (`Base_Imputers`)
