@@ -2,9 +2,6 @@
 [1] https://github.com/pamattei/miwae/blob/master/Pytorch%20notebooks/MIWAE_Pytorch_exercises_demo_ProbAI.ipynb
 """
 #%%
-import os
-import sys
-#%%
 import numpy as np
 import pandas as pd
 import torch
@@ -14,8 +11,7 @@ from torch.utils.data import DataLoader
 from torch.distributions.categorical import Categorical
 
 from modules.prior import generate_prior
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from evaluation.simulation import set_random_seed
+from modules.utils import set_random_seed
 
 #%%
 class MIWAE(nn.Module):
@@ -24,7 +20,7 @@ class MIWAE(nn.Module):
         self.config = config
         self.device = device
         
-        self.input_dim = config["input_dim"] # num_features
+        self.input_dim = EncodedInfo.num_features # num_features
         self.hidden_dim = config["hidden_dim"] # 128
         self.latent_dim = config["latent_dim"] # 1
         self.k = config["k"] # default 20
@@ -36,18 +32,20 @@ class MIWAE(nn.Module):
             nn.ReLU(),
             nn.Linear(self.hidden_dim, self.hidden_dim),
             nn.ReLU(),
-            nn.Linear(self.hidden_dim, 2*self.latent_dim), # Encoder will output both (1)the mean and (2)the diagonal covariance
-        )
+            nn.Linear(self.hidden_dim, 2*self.latent_dim), 
+        )   
+        # Encoder will output both (1)the mean and (2)the diagonal covariance
 
         self.decoder_layer = nn.Sequential(
             nn.Linear(self.latent_dim, self.hidden_dim),
             nn.ReLU(),
             nn.Linear(self.hidden_dim, self.hidden_dim),
             nn.ReLU(),
-            nn.Linear(self.hidden_dim, 3*self.num_continuous_features+sum(self.num_categories)), # Decoder will output (1)the mean, (2)the scale, and (3) the number of degree
+            nn.Linear(self.hidden_dim, 3*self.num_continuous_features+sum(self.num_categories)), 
             # nn.Sigmoid(),
         )
-
+       # Decoder will output (1)the mean, (2)the scale, and (3) the number of degree
+        
         self.apply(self.weights_init)
     
     @staticmethod
@@ -67,10 +65,6 @@ class MIWAE(nn.Module):
 
     def miwae_loss(self, x, mask):
         """masking"""
-        # x = next(iter(train_dataloader))
-        # x.size()
-        # x = xhat
-        # assert x.isnan().sum() == x.size(0)*x.size(1)-mask.sum() # checking masking
         batch_size = len(x)
 
         out_encoder = self.encoder(x)
@@ -144,7 +138,7 @@ class MIWAE(nn.Module):
             batch_size=self.config['batch_size'], 
             shuffle=False)
         
-        imputed = []
+        imputed_ = []
         for batch in train_dataloader:
             batch_size = len(batch)
             mask = (~torch.isnan(batch)).to(torch.float32).to(self.device)
@@ -214,36 +208,55 @@ class MIWAE(nn.Module):
                 
                 st = end
                 
-            # cross_entropy = torch.sum(torch.stack(disc_loss), dim=0)
             xm_cats = torch.stack(xm_cat).T.reshape([M,batch_size,-1])
 
-            # imp_weights = torch.nn.functional.softmax(logpxobsgivenz + logpz - logq-cross_entropy,dim=0) # these are w_1,....,w_L for all observations in the batch
             xms = xgivenz.sample().reshape([M,batch_size,self.num_continuous_features])
-            
-            # label = Categorical(probs=imp_weights.T).sample_n(M)
-            # xm = xms[label,torch.arange(batch_size),:]
-            # xm_cat = xm_cats[label,torch.arange(batch_size),:]
-            # xm = torch.cat([xm, xm_cat], dim=-1)
+
             xm = torch.cat([xms, xm_cats], dim=-1)
             
             batch = torch.Tensor.repeat(batch, [M,1,1])
             mask = torch.Tensor.repeat(mask, [M,1,1])
             mask = ~mask.to(torch.bool)
             batch[mask] = xm[mask]
-            imputed.append(batch)
+            imputed_.append(batch)
         
-        full_data = torch.cat(imputed, dim=1)
+        imputed_ = torch.cat(imputed_, dim=1)
         
-        data_list = []
-        for data in full_data: 
-            train_dataset.EncodedInfo.mean
-            data = pd.DataFrame(data.cpu().numpy(), columns=train_dataset.features)
-        
-            data[train_dataset.continuous_features] = data[train_dataset.continuous_features]*train_dataset.EncodedInfo.std + train_dataset.EncodedInfo.mean
+
+        # multiple imputation
+        if self.config["multiple"]:
+            imputed = []
+            for data in imputed_: 
+                data = pd.DataFrame(data.cpu().numpy(), columns=train_dataset.features)
             
-            data[train_dataset.categorical_features] = data[train_dataset.categorical_features].astype(int)
-            data[train_dataset.integer_features] = data[train_dataset.integer_features].round(0).astype(int)
-            data_list.append(data)
+                """un-standardization of synthetic data"""
+                for col, scaler in train_dataset.scalers.items():
+                    data[[col]] = scaler.inverse_transform(data[[col]])
+                
+                """post-process"""
+                data[train_dataset.categorical_features] = data[train_dataset.categorical_features].astype(int)
+                data[train_dataset.integer_features] = data[train_dataset.integer_features].round(0).astype(int)
+                imputed.append(data)
+
+        # single imputation
+        else:
+            cont_imputed = torch.mean(
+                imputed_[:, :, : train_dataset.EncodedInfo.num_continuous_features], dim=0
+            )
+            disc_imputed = torch.mode(
+                imputed_[:, :, train_dataset.EncodedInfo.num_continuous_features:], dim=0
+            )[0]
+            imputed = torch.cat([cont_imputed, disc_imputed], dim=1)
+            imputed= pd.DataFrame(imputed.cpu().numpy(), columns=train_dataset.features)
+            
+            """un-standardization of synthetic data"""
+            for col, scaler in train_dataset.scalers.items():
+                imputed[[col]] = scaler.inverse_transform(imputed[[col]])
+            
+            """post-process"""
+            imputed[train_dataset.categorical_features] = imputed[train_dataset.categorical_features].astype(int)
+            imputed[train_dataset.integer_features] = imputed[train_dataset.integer_features].round(0).astype(int)
         
-        return data_list
+        return imputed
+# %%
 # %%

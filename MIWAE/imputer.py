@@ -1,11 +1,13 @@
 #%%
 import os
-import torch
 import argparse
 import importlib
 
-from evaluation.evaluation_imputation import evaluate
-from evaluation.simulation import set_random_seed
+import torch
+
+from modules.utils import set_random_seed
+from evaluation import evaluation_multiple 
+from evaluation import evaluation
 #%%
 import sys
 import subprocess
@@ -18,12 +20,12 @@ except:
     subprocess.run(["wandb", "login"], input=key[0], encoding='utf-8')
     import wandb
 
-project = "xxx" # put your WANDB project name
-entity = "xxx" # put your WANDB username
+project = "MIWAE" # put your WANDB project name
+# entity = "wotjd1410" # put your WANDB username
 
 run = wandb.init(
     project=project, 
-    entity=entity, 
+    # entity=entity, 
     tags=["Imputation"], # put tags of this python project
 )
 #%%
@@ -43,13 +45,21 @@ def get_args(debug):
     parser.add_argument('--ver', type=int, default=0, 
                         help='model version number')
     
-    parser.add_argument('--dataset', type=str, default='kings', 
-                        help='Dataset options: abalone, banknote, breast, redwine, whitewine')
+    parser.add_argument('--dataset', type=str, default='loan', 
+                        help="""
+                        Dataset options: 
+                        loan, kings, banknote, concrete, redwine, 
+                        whitewine, breast, letter, abalone, anuran
+                        """)
+    
     parser.add_argument("--missing_type", default="MCAR", type=str,
                         help="how to generate missing: MCAR, MAR, MNARL, MNARQ") 
     parser.add_argument("--missing_rate", default=0.3, type=float,
                         help="missing rate") 
     
+    # multiple imputation
+    parser.add_argument('--multiple', default=False, type=str2bool,
+                        help="multiple imputation")
     parser.add_argument("--M", default=100, type=int,
                         help="the number of multiple imputation")
     
@@ -63,18 +73,16 @@ def main():
     config = vars(get_args(debug=False)) # default configuration
     
     """model load"""
-    model_name = f"MIWAE_{config['dataset']}_{config['missing_type']}"
-
+    base_name = f"{config['missing_type']}_{config['missing_rate']}_{config['dataset']}"
+    model_name = f"MIWAE_{base_name}"
     artifact = wandb.use_artifact(
         f"{project}/{model_name}:v{config['ver']}",
-        type='model'
-    )
+        type='model')
     for key, item in artifact.metadata.items():
         config[key] = item
     model_dir = artifact.download()
-    
     model_name = [x for x in os.listdir(model_dir) if x.endswith(f"{config['seed']}.pth")][0]
-    
+    #%%
     config["cuda"] = torch.cuda.is_available()
     device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
     set_random_seed(config["seed"])
@@ -82,16 +90,22 @@ def main():
     
     assert config["missing_type"] != None
     #%%
-    dataset_module = importlib.import_module('datasets.imputation')
+    """dataset"""
+    dataset_module = importlib.import_module('datasets.preprocess')
     importlib.reload(dataset_module)
     CustomDataset = dataset_module.CustomDataset
 
-    """dataset"""
-    train_dataset = CustomDataset(config)
-    (n, p) = train_dataset.data.shape
-    config["input_dim"] = p
+    train_dataset = CustomDataset(
+        config,
+        train=True
+    )
+    test_dataset = CustomDataset(
+        config,
+        scalers=train_dataset.scalers,
+        train=False
+    )
     #%%
-    """model load"""
+    """model"""
     model_module = importlib.import_module("modules.model")
     importlib.reload(model_module)
     model = model_module.MIWAE(
@@ -118,12 +132,20 @@ def main():
     """number of parameters"""
     count_parameters = lambda model: sum(p.numel() for p in model.parameters())
     num_params = count_parameters(model)
-    print(f"Number of Parameters: {num_params / 1000000:.1f}M")
+    print(f"Number of Parameters: {num_params / 1000000:.2f}M")
     wandb.log({"Number of Parameters": num_params / 1000000})
     #%%
-    """imputation evaluation"""
-    results = evaluate(train_dataset, model, M=config["M"])
-    
+    """imputation"""
+    if config["multiple"]:
+        results = evaluation_multiple.evaluate(
+            train_dataset, model, M=config["M"]
+        )
+    else:
+        imputed = model.impute(
+            train_dataset, M=config['M'], seed=config["seed"]
+        )
+        results = evaluation.evaluate(imputed, train_dataset, test_dataset, config, device)
+
     for x, y in results._asdict().items():
         print(f"{x}: {y:.3f}")
         wandb.log({f"{x}": y})

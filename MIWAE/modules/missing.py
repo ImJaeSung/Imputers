@@ -7,7 +7,7 @@ import numpy as np
 
 from scipy import optimize
 
-from evaluation.simulation import set_random_seed
+from modules.utils import set_random_seed
 
 #### Quantile ######
 def quantile(X, q, dim=None):
