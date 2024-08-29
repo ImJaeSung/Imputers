@@ -1,4 +1,5 @@
 # current implementation: only support numerical values
+import random
 import numpy as np
 import torch, os
 from torch import nn as nn
@@ -6,6 +7,19 @@ from torch.utils.data import Dataset, DataLoader
 import pandas as pd
 import math
 import argparse
+
+#%%
+"""for reproducibility"""
+def set_random_seed(seed):
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)  # 모든 GPU에 대한 시드 고정
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+    # NumPy 시드 고정
+    np.random.seed(seed)
+    random.seed(seed)   
 
 class MaskEmbed(nn.Module):
     """ record to mask embedding
@@ -89,7 +103,7 @@ def adjust_learning_rate(optimizer, epoch, lr, min_lr, max_epochs, warmup_epochs
     return tmp_lr
 
 
-def get_grad_norm_(parameters, norm_type: float = 2.0) -> torch.Tensor:
+def get_grad_norm_(parameters, norm_type: float = 5.0) -> torch.Tensor:
     if isinstance(parameters, torch.Tensor):
         parameters = [parameters]
     parameters = [p for p in parameters if p.grad is not None]
@@ -134,20 +148,6 @@ class NativeScaler:
 
 
 
-class MAEDataset(Dataset):
-
-    def __init__(self, X, M):        
-         self.X = X
-         self.M = M
-
-    def __len__(self):
-        return len(self.X)
-
-    def __getitem__(self, idx: int):
-        return self.X[idx], self.M[idx]
-
-
-
 def get_args_parser():
     parser = argparse.ArgumentParser('MAE pre-training', add_help=False)
     parser.add_argument('--batch_size', default=1024, type=int,
@@ -185,9 +185,73 @@ def get_args_parser():
     # distributed training parameters
     return parser
 
-if __name__ == '__main__':
+#%%
+def get_frequency(
+    X_gt: pd.DataFrame, X_synth: pd.DataFrame, n_histogram_bins: int = 10
+):
+    """
+    Reference:
+    [1] https://github.com/vanderschaarlab/synthcity/blob/main/src/synthcity/metrics/_utils.py
     
-    X = torch.tensor([[1, 2, 3, 4]], dtype=torch.float32)
-    X = X.unsqueeze(1)
-    mask_embed = ActiveEmbed(4, 6)
-    print(mask_embed(X).shape)
+    Get percentual frequencies for each possible real categorical value.
+
+    Returns:
+        The observed and expected frequencies (as a percent).
+    """
+    res = {}
+    for col in X_gt.columns:
+        local_bins = min(n_histogram_bins, len(X_gt[col].unique()))
+
+        if len(X_gt[col].unique()) < 5:  # categorical
+            gt = (X_gt[col].value_counts() / len(X_gt)).to_dict()
+            synth = (X_synth[col].value_counts() / len(X_synth)).to_dict()
+        else:
+            gt_vals, bins = np.histogram(X_gt[col], bins=local_bins)
+            synth_vals, _ = np.histogram(X_synth[col], bins=bins)
+            gt = {k: v / (sum(gt_vals) + 1e-8) for k, v in zip(bins, gt_vals)}
+            synth = {k: v / (sum(synth_vals) + 1e-8) for k, v in zip(bins, synth_vals)}
+
+        for val in gt:
+            if val not in synth or synth[val] == 0:
+                synth[val] = 1e-11
+        for val in synth:
+            if val not in gt or gt[val] == 0:
+                gt[val] = 1e-11
+
+        if gt.keys() != synth.keys():
+            raise ValueError(f"Invalid features. {gt.keys()}. syn = {synth.keys()}")
+        res[col] = (list(gt.values()), list(synth.values()))
+
+    return res
+#%%
+def marginal_plot(train, syndata, config, model_name):
+    model_name = re.sub(".pth", "", model_name)
+    if not os.path.exists(f"./assets/figs/{config['dataset']}/{model_name}/"):
+        os.makedirs(f"./assets/figs/{config['dataset']}/{model_name}/")
+    
+    figs = []
+    for idx, feature in tqdm(enumerate(train.columns), desc="Plotting Histograms..."):
+        fig = plt.figure(figsize=(7, 4))
+        fig, ax = plt.subplots(1, 1)
+        sns.histplot(
+            data=syndata,
+            x=syndata[feature],
+            stat='density',
+            label='synthetic',
+            ax=ax,
+            bins=int(np.sqrt(len(syndata)))) 
+        sns.histplot(
+            data=train,
+            x=train[feature],
+            stat='density',
+            label='train',
+            ax=ax,
+            bins=int(np.sqrt(len(train)))) 
+        ax.legend()
+        ax.set_title(f'{feature}', fontsize=15)
+        plt.tight_layout()
+        plt.savefig(f"./assets/figs/{config['dataset']}/{model_name}/hist_{re.sub(' ', '_', feature)}.png")
+        # plt.show()
+        plt.close()
+        figs.append(fig)
+    return figs
