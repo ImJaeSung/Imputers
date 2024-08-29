@@ -7,4 +7,5 @@ This repository is unofficial implementation of following papers with PyTorch an
 - [Missing value estimation methods for DNA microarrays](https://academic.oup.com/bioinformatics/article/17/6/520/272365) (`KNNImputer`)
 - [MIWAE: Deep Generative Modelling and Imputation of Incomplete Data Sets](https://proceedings.mlr.press/v97/mattei19a/mattei19a.pdf) (`MIWAE`)
 - [not-MIWAE: Deep Generative Modelling with Missing not at Random Data](https://openreview.net/forum?id=tu29GQT0JFy) (`not-MIWAE`)
-- [Variational Autoencoder with Arbitrary Conditioning](https://openreview.net/forum?id=SyxtJh0qYm) (`VAEAC`)
+- [Variational Autoencoder with Arbitrary Conditioning](https://openreview.net/forum?id=SyxtJh0qYm) (`VAEAC`) 
+- [ReMasker: Imputing Tabular Data with Masked Autoencoding](https://openreview.net/forum?id=KI9NqjLVDT) (`remasker`)
