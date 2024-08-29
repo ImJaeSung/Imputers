@@ -70,21 +70,22 @@ class Generator(nn.Module):
 
         imputed_data_ = []
         for batch in tqdm(train_dataloader, desc="imputation..."):
-            X = batch.float()
-            get_batch = X.shape[0]
-            dim = X.shape[1]
+            with torch.no_grad():
+                X = batch.float()
+                get_batch = X.shape[0]
+                dim = X.shape[1]
 
-            M = 1 - torch.isnan(X).float().to(device) #1: observed, 0: nan
-            
-            X = torch.nan_to_num(X,nan=0.0).to(device)     
-            Z = sample_uniform(get_batch, dim).float().to(device)
-            New_X = M * X + (1-M) * Z  
-            _, Sample = self.test_loss(X, M, New_X)
-
-            imputed_data_batch = M * X + (1-M) * Sample
-            imputed_data_.append(imputed_data_batch)
+                M = 1 - torch.isnan(X).float().to(device) #1: observed, 0: nan
                 
-        imputed_data = torch.cat(imputed_data_, dim=0)
+                X = torch.nan_to_num(X,nan=0.0).to(device)     
+                Z = sample_uniform(get_batch, dim).float().to(device)
+                New_X = M * X + (1-M) * Z  
+                _, Sample = self.test_loss(X, M, New_X)
+
+                imputed_data_batch = M * X + (1-M) * Sample
+                imputed_data_.append(imputed_data_batch)
+                    
+            imputed_data = torch.cat(imputed_data_, dim=0)
 
         """post-processing"""
         imputed_data = renormalization(

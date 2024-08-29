@@ -140,89 +140,89 @@ class MIWAE(nn.Module):
         
         imputed_ = []
         for batch in train_dataloader:
-            batch_size = len(batch)
-            mask = (~torch.isnan(batch)).to(torch.float32).to(self.device)
-            batch = batch.to(self.device)
-            batch[torch.isnan(batch)] = 0
-        
-            out_encoder = self.encoder(batch)
-            q_zgivenxobs = torch.distributions.Independent(
-                torch.distributions.Normal(
-                    loc=out_encoder[..., :self.latent_dim],
-                    scale=nn.Softplus()(out_encoder[..., self.latent_dim:(2*self.latent_dim)])+ 0.001
-                ), 1
-            )
-        
-            zgivenx = q_zgivenxobs.rsample([M]) # (K, b, 1)
-            zgivenx_flat = zgivenx.reshape([-1, self.latent_dim])
+            with torch.no_grad():
+                batch_size = len(batch)
+                mask = (~torch.isnan(batch)).to(torch.float32).to(self.device)
+                batch = batch.to(self.device)
+                batch[torch.isnan(batch)] = 0
             
+                out_encoder = self.encoder(batch)
+                q_zgivenxobs = torch.distributions.Independent(
+                    torch.distributions.Normal(
+                        loc=out_encoder[..., :self.latent_dim],
+                        scale=nn.Softplus()(out_encoder[..., self.latent_dim:(2*self.latent_dim)])+ 0.001
+                    ), 1
+                )
             
-            out_decoder = self.decoder(zgivenx_flat)
-            all_means_obs_model = out_decoder[..., :self.num_continuous_features] # (b*K, num_continuous_features)
-            all_scales_obs_model = nn.Softplus()(
-                out_decoder[..., self.num_continuous_features:(2*self.num_continuous_features)]
-            ) + 0.001 # (b*K, num_continuous_features)
-
-            all_degfreedom_obs_model = nn.Softplus()(
-                out_decoder[..., (2*self.num_continuous_features):(3*self.num_continuous_features)]
-            ) + 3 
-            logit = out_decoder[:,(3*self.num_continuous_features):]
-            
-            data_flat = torch.Tensor.repeat(batch[:, :self.num_continuous_features],[M, 1]).reshape(-1, 1) # (b*K*num_continuous_features, 1)
-            tiledmask = torch.Tensor.repeat(mask[:, :self.num_continuous_features],[M, 1]) # (b*K, num_continuous_features)
-
-            all_log_pxgivenz_flat = torch.distributions.StudentT(
-                loc=all_means_obs_model.reshape(-1, 1),
-                scale=all_scales_obs_model.reshape(-1, 1),
-                df=all_degfreedom_obs_model.reshape(-1, 1)
-            ).log_prob(data_flat) # (b*K*num_continuous_features, 1)
-
-            all_log_pxgivenz = all_log_pxgivenz_flat.reshape(batch_size*M, self.num_continuous_features)
-        
-            logpxobsgivenz = torch.sum(all_log_pxgivenz*tiledmask, axis=1).reshape(M, batch_size)
-            
-            prior = generate_prior(self.config, self.device)
-            logpz = prior.log_prob(zgivenx)
-            logq = q_zgivenxobs.log_prob(zgivenx)
-            
-            xgivenz = torch.distributions.Independent(
-                torch.distributions.StudentT(
-                    loc=all_means_obs_model,
-                    scale=all_scales_obs_model,
-                    df=all_degfreedom_obs_model),1)
-            
-            disc_loss = []
-            xm_cat = []
-            st = 0
-            end = 0
-            for i, n in enumerate(self.num_categories):
-                end += n
-                target = batch[:,self.num_continuous_features+i].to(torch.long)
-                target = torch.Tensor.repeat(target,[M, 1]).reshape(-1)
-                target = F.one_hot(target, num_classes=n+1)[:,1:].float()
+                zgivenx = q_zgivenxobs.rsample([M]) # (K, b, 1)
+                zgivenx_flat = zgivenx.reshape([-1, self.latent_dim])
                 
-                loss = torch.sum(torch.log_softmax(logit[:,st:end], dim=-1)*target, dim=-1).reshape(M,-1)
-                disc_loss.append(loss)
                 
-                xm_cat.append(Categorical(logits=logit[:,st:end]).sample())
-                
-                st = end
-                
-            xm_cats = torch.stack(xm_cat).T.reshape([M,batch_size,-1])
+                out_decoder = self.decoder(zgivenx_flat)
+                all_means_obs_model = out_decoder[..., :self.num_continuous_features] # (b*K, num_continuous_features)
+                all_scales_obs_model = nn.Softplus()(
+                    out_decoder[..., self.num_continuous_features:(2*self.num_continuous_features)]
+                ) + 0.001 # (b*K, num_continuous_features)
 
-            xms = xgivenz.sample().reshape([M,batch_size,self.num_continuous_features])
+                all_degfreedom_obs_model = nn.Softplus()(
+                    out_decoder[..., (2*self.num_continuous_features):(3*self.num_continuous_features)]
+                ) + 3 
+                logit = out_decoder[:,(3*self.num_continuous_features):]
+                
+                data_flat = torch.Tensor.repeat(batch[:, :self.num_continuous_features],[M, 1]).reshape(-1, 1) # (b*K*num_continuous_features, 1)
+                tiledmask = torch.Tensor.repeat(mask[:, :self.num_continuous_features],[M, 1]) # (b*K, num_continuous_features)
 
-            xm = torch.cat([xms, xm_cats], dim=-1)
+                all_log_pxgivenz_flat = torch.distributions.StudentT(
+                    loc=all_means_obs_model.reshape(-1, 1),
+                    scale=all_scales_obs_model.reshape(-1, 1),
+                    df=all_degfreedom_obs_model.reshape(-1, 1)
+                ).log_prob(data_flat) # (b*K*num_continuous_features, 1)
+
+                all_log_pxgivenz = all_log_pxgivenz_flat.reshape(batch_size*M, self.num_continuous_features)
             
-            batch = torch.Tensor.repeat(batch, [M,1,1])
-            mask = torch.Tensor.repeat(mask, [M,1,1])
-            mask = ~mask.to(torch.bool)
-            batch[mask] = xm[mask]
-            imputed_.append(batch)
-        
-        imputed_ = torch.cat(imputed_, dim=1)
-        
+                logpxobsgivenz = torch.sum(all_log_pxgivenz*tiledmask, axis=1).reshape(M, batch_size)
+                
+                prior = generate_prior(self.config, self.device)
+                logpz = prior.log_prob(zgivenx)
+                logq = q_zgivenxobs.log_prob(zgivenx)
+                
+                xgivenz = torch.distributions.Independent(
+                    torch.distributions.StudentT(
+                        loc=all_means_obs_model,
+                        scale=all_scales_obs_model,
+                        df=all_degfreedom_obs_model),1)
+                
+                disc_loss = []
+                xm_cat = []
+                st = 0
+                end = 0
+                for i, n in enumerate(self.num_categories):
+                    end += n
+                    target = batch[:,self.num_continuous_features+i].to(torch.long)
+                    target = torch.Tensor.repeat(target,[M, 1]).reshape(-1)
+                    target = F.one_hot(target, num_classes=n+1)[:,1:].float()
+                    
+                    loss = torch.sum(torch.log_softmax(logit[:,st:end], dim=-1)*target, dim=-1).reshape(M,-1)
+                    disc_loss.append(loss)
+                    
+                    xm_cat.append(Categorical(logits=logit[:,st:end]).sample())
+                    
+                    st = end
+                    
+                xm_cats = torch.stack(xm_cat).T.reshape([M,batch_size,-1])
 
+                xms = xgivenz.sample().reshape([M,batch_size,self.num_continuous_features])
+
+                xm = torch.cat([xms, xm_cats], dim=-1)
+                
+                batch = torch.Tensor.repeat(batch, [M,1,1])
+                mask = torch.Tensor.repeat(mask, [M,1,1])
+                mask = ~mask.to(torch.bool)
+                batch[mask] = xm[mask]
+                imputed_.append(batch)
+            
+            imputed_ = torch.cat(imputed_, dim=1)
+    
         # multiple imputation
         if self.config["multiple"]:
             imputed = []
