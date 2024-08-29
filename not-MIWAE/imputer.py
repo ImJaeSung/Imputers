@@ -44,9 +44,9 @@ def str2bool(v):
 def get_args(debug):
     parser = argparse.ArgumentParser('parameters')
     
-    parser.add_argument('--ver', type=int, default=1, 
+    parser.add_argument('--ver', type=int, default=0, 
                         help='model version number')
-    parser.add_argument('--dataset', type=str, default='abalone', 
+    parser.add_argument('--dataset', type=str, default='loan', 
                         help="""
                         Dataset options: 
                         abalone, anuran, banknote, breast, concrete,
@@ -98,23 +98,15 @@ def main():
     CustomDataset = dataset_module.CustomDataset
 
     """dataset"""
-    if config["multiple"]: 
-        config["test_size"] = 0 # not using test data in multiple imputation
-        train_dataset = CustomDataset(
-            config,
-            train=True
-        )
-    
-    else:      
-        train_dataset = CustomDataset(
-            config,
-            train=True
-        )
-        test_dataset = CustomDataset(
-            config,
-            scalers=train_dataset.scalers,
-            train=False,
-        )
+    train_dataset = CustomDataset(
+        config,
+        train=True
+    )
+    test_dataset = CustomDataset(
+        config,
+        scalers=train_dataset.scalers,
+        train=False,
+    )
     #%%
     """model load"""
     model_module = importlib.import_module("modules.model")
@@ -148,14 +140,13 @@ def main():
     #%%
     """imputation"""
     if config["multiple"]:
-        imputed = evaluation_multiple.evaluate(train_dataset, model, M=config['M'])
+        results = evaluation_multiple.evaluate(train_dataset, model, config['M'])
     else:
         imputed = model.impute(
             train_dataset, M=config['M'], seed=config["seed"]
         )
-
-        results = evaluation.evaluate(imputed, train_dataset, test_dataset, config)
-        train_dataset.raw_data
+        results = evaluation.evaluate(imputed, train_dataset, test_dataset, config, device)
+    
     for x, y in results._asdict().items():
         print(f"{x}: {y:.3f}")
         wandb.log({f"{x}": y})

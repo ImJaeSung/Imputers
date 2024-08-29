@@ -220,7 +220,7 @@ class notMIWAE(nn.Module):
         l = self.latent_dim
         M = self.config["M"]
         
-        imputed = []
+        imputed_ = []
         for batch in train_dataloader:
             with torch.no_grad():
                 batch_size = len(batch)
@@ -275,14 +275,14 @@ class notMIWAE(nn.Module):
                 mask = ~mask.to(torch.bool) # missing : 1
                 
                 batch[mask] = xms[mask]
-                imputed.append(batch)
+                imputed_.append(batch)
         
-        M_data = torch.cat(imputed, dim=1)
+        imputed_ = torch.cat(imputed_, dim=1)
 
         # multiple imputation
         if self.config["multiple"]:
             imputed = []
-            for data in M_data: 
+            for data in imputed_: 
                 data = pd.DataFrame(data.cpu().numpy(), columns=train_dataset.features)
             
                 """un-standardization of synthetic data"""
@@ -297,10 +297,10 @@ class notMIWAE(nn.Module):
         # single imputation
         else:
             cont_imputed = torch.mean(
-                M_data[:, :, : train_dataset.EncodedInfo.num_continuous_features], dim=0
+                imputed_[:, :, : train_dataset.EncodedInfo.num_continuous_features], dim=0
             )
             disc_imputed = torch.mode(
-                M_data[:, :, train_dataset.EncodedInfo.num_continuous_features:], dim=0
+                imputed_[:, :, train_dataset.EncodedInfo.num_continuous_features:], dim=0
             )[0]
             imputed = torch.cat([cont_imputed, disc_imputed], dim=1)
             imputed= pd.DataFrame(imputed.cpu().numpy(), columns=train_dataset.features)
