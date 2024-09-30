@@ -43,7 +43,7 @@ def train_function(
             samples = samples.to(device, non_blocking=True)
             masks = masks.to(device, non_blocking=True)
 
-            with torch.cuda.amp.autocast('cuda'):
+            with torch.amp.autocast('cuda'):
                 loss, _, _, _ = model(samples, masks)
                 loss_value = loss.item()
 

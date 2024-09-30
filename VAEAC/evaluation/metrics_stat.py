@@ -143,8 +143,8 @@ def WassersteinDistance(train_dataset, imputed, large=False):
     train_ = scaler.transform(train_)
     imputed_ = scaler.transform(imputed_)
     
-    train_ = torch.from_numpy(train_)
-    imputed_ = torch.from_numpy(imputed_)
+    train_ = torch.from_numpy(train_).float()  # Ensure tensor is float
+    imputed_ = torch.from_numpy(imputed_).float()  # Ensure tensor is float
     
     OT_solver = SamplesLoss(loss="sinkhorn")
     """
@@ -162,3 +162,36 @@ def WassersteinDistance(train_dataset, imputed, large=False):
         WD = OT_solver(train_, imputed_).cpu().numpy().item()
     return WD
 #%%
+def phi(s, D):
+    return (1 + (4 * s) / (2 * D - 3)) ** (-1 / 2)
+#%%
+def CramerWoldDistance(train_dataset, imputed, config, device):
+    """
+    Joint statistical fidelity: Cramer-Wold Distance
+    : lower is better
+    """
+    
+    train = train_dataset.raw_data
+    # only continuous
+    train = train[train_dataset.continuous_features]
+    imputed = imputed[train_dataset.continuous_features]
+    if config["dataset"] == "adult": ### OOM
+        train = train.sample(frac=0.5, random_state=42)
+        imputed = imputed.sample(frac=0.5, random_state=42)
+    
+    scaler = StandardScaler().fit(train)
+    train_ = scaler.transform(train).astype(np.float32)
+    imputed_ = scaler.transform(imputed).astype(np.float32)
+    train_ = torch.from_numpy(train_).to(device)
+    imputed_ = torch.from_numpy(imputed_).to(device)
+    
+    gamma_ = (4 / (3 * train_.size(0))) ** (2 / 5)
+    
+    cw1 = torch.cdist(train_, train_) ** 2 
+    cw2 = torch.cdist(imputed_, imputed_) ** 2 
+    cw3 = torch.cdist(train_, imputed_) ** 2 
+    cw = phi(cw1 / (4 * gamma_), D=train_.size(1)).sum()
+    cw += phi(cw2 / (4 * gamma_), D=train_.size(1)).sum()
+    cw += -2 * phi(cw3 / (4 * gamma_), D=train_.size(1)).sum()
+    cw /= (2 * train_.size(0) ** 2 * torch.tensor(torch.pi * gamma_).sqrt())
+    return cw.cpu().numpy().item()

@@ -63,9 +63,9 @@ def kMap(train_dataset, imputed):
     imputed = imputed[train_dataset.continuous_features]
     
     scaler = StandardScaler().fit(train)
-    train = scaler.transform(train)
-    imputed = scaler.transform(imputed)
-    
+    train = scaler.transform(train).astype(np.float32)
+    imputed = scaler.transform(imputed).astype(np.float32)
+
     values = []
     for n_clusters in [2, 5, 10, 15]:
         if len(train) / n_clusters < 10:

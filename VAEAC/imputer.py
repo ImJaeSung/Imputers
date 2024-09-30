@@ -76,7 +76,6 @@ def get_args(debug):
 def main():
     #%%
     config = vars(get_args(debug=False))
-
     """model load"""
     base_name = f"{config['missing_type']}_{config['missing_rate']}_{config['dataset']}"
     model_name = f"VAEAC_{base_name}"

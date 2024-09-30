@@ -68,9 +68,9 @@ def get_args(debug):
     parser.add_argument('--pin_mem', action='store_false')
     
     # training
-    parser.add_argument('--batch_size', default=1024, type=int,
+    parser.add_argument('--batch_size', default=64, type=int,
                         help='Batch size per GPU (effective batch size is batch_size * accum_iter * # gpus')
-    parser.add_argument('--max_epochs', default=10, type=int)
+    parser.add_argument('--max_epochs', default=600, type=int)
     parser.add_argument('--accum_iter', default=1, type=int,
                         help='Accumulate gradient iterations (for increasing the effective batch size under memory constraints)')
 

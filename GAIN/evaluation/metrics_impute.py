@@ -97,8 +97,11 @@ def SMAPE(train_dataset, imputed):
     imputation = imputation[train_dataset.mask[:, :C] == 1]
     
     smape = np.abs(original - imputation)
-    smape /= (np.abs(original) + np.abs(imputation)) + 1e-6 # numerical stability
-    smape = smape.mean()
+    # smape /= (np.abs(original) + np.abs(imputation)) + 1e-6 # numerical stability
+    # smape = smape.mean()
+    
+    denom = np.abs(original) + np.abs(imputation) + 1e-6
+    smape = np.divide(smape, denom, where=(denom != 0)).mean()
     
     """categorical"""
     original = train_dataset.raw_data.values[:, C:]
