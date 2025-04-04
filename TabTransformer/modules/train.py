@@ -62,7 +62,7 @@ def train_function(
                 
                 cat_loss_ = F.cross_entropy(
                     pred_cat[:, st_:st_+j], 
-                   target, 
+                    target, 
                     reduction='none')[loss_mask[:, idx]].mean()
                 st_ = j
                 
