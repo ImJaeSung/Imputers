@@ -55,9 +55,9 @@ def get_args(debug):
     
     parser.add_argument("--test_size", default=0.2, type=float,
                         help="the ratio of train test split")     
-    parser.add_argument('--epochs', default=500, type=int,
+    parser.add_argument('--epochs', default=1000, type=int,
                         help='the number of epochs')
-    parser.add_argument('--batch_size', default=8, type=int,
+    parser.add_argument('--batch_size', default=512, type=int,
                         help='batch size')
     parser.add_argument('--lr', default=0.0005, type=float,
                         help='learning rate')
