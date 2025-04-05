@@ -1,5 +1,6 @@
 """Reference:
 [1] https://github.com/pfnet-research/TabCSDI/blob/main/src/main_model_table.py
+[2] https://github.com/pfnet-research/TabCSDI/blob/main/src/diff_models_table.py
 """
 #%%
 import numpy as np
