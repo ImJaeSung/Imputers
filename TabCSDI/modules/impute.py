@@ -1,4 +1,7 @@
-#%%
+"""Reference:
+[1]https://github.com/pfnet-research/TabCSDI/blob/main/src/utils_table.py
+"""
+##%
 from tqdm import tqdm
 
 import pandas as pd
