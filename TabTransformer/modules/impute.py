@@ -29,9 +29,6 @@ def impute(
         x_cat = x_categ[st: ed].to(device)
         x_con = x_cont[st: ed].to(device)
         
-        x_cat = x_categ[st: ed].to(device)
-        x_con = x_cont[st: ed].to(device)
-
         batch = torch.cat([x_con, x_cat], dim=1)
             
         nan_mask = batch.isnan()
@@ -54,11 +51,12 @@ def impute(
             st_ = j
             imputed_cat_.append(imputed_cat_tmp)
 
-        imputed_cat = torch.cat(imputed_cat_, dim=0).reshape(-1, 1)
-        
+        imputed_cat = torch.stack((imputed_cat_), dim=1)
+    
         data_ = torch.cat([imputed_con, imputed_cat], dim=1)
-        
+    
         data.append(data_)
+    
     data = torch.cat(data, dim=0)
     data = pd.DataFrame(data.cpu().numpy(), columns=train_dataset.features)
         
@@ -73,3 +71,4 @@ def impute(
         columns=train_dataset.raw_data.columns)
 
     return imputed
+# %%

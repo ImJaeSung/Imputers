@@ -39,7 +39,7 @@ def get_args(debug):
     parser.add_argument('--seed', type=int, default=0, 
                         help='seed for repeatable results')
     parser.add_argument('--model', type=str, default='TabTransformer')
-    parser.add_argument('--dataset', type=str, default='whitewine', 
+    parser.add_argument('--dataset', type=str, default='abalone', 
                         help="""
                         Dataset options: 
                         abalone, banknote, breast, concrete, covtype,
