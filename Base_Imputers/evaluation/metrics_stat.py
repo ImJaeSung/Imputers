@@ -119,7 +119,7 @@ def MaximumMeanDiscrepancy(train_dataset, imputed, large=False):
     MMD = XX.mean() + YY.mean() - 2 * XY.mean()
     return MMD
 #%%
-def WassersteinDistance(train_dataset, imputed, large=False):
+def WassersteinDistance(train_dataset, imputed, device):
     """
     Joint statistical fidelity: Wasserstein Distance
     : lower is better
@@ -130,10 +130,6 @@ def WassersteinDistance(train_dataset, imputed, large=False):
     train = train[train_dataset.continuous_features]
     imputed = imputed[train_dataset.continuous_features]
     
-    if large:
-        train = train.sample(frac=0.05, random_state=0)
-        imputed = imputed.sample(frac=0.05, random_state=0)
-    
     train_ = train.values.reshape(len(train), -1)
     imputed_ = imputed.values.reshape(len(imputed), -1)
     
@@ -143,14 +139,10 @@ def WassersteinDistance(train_dataset, imputed, large=False):
     train_ = scaler.transform(train_)
     imputed_ = scaler.transform(imputed_)
     
-    train_ = torch.from_numpy(train_).float()  # Ensure tensor is float
-    imputed_ = torch.from_numpy(imputed_).float()  # Ensure tensor is float
+    train_ = torch.from_numpy(train_).to(device)
+    imputed_ = torch.from_numpy(imputed_).to(device)
     
     OT_solver = SamplesLoss(loss="sinkhorn")
-    """
-    Compute WD for 4000 samples and average due to the following error:
-    "NameError: name 'generic_logsumexp' is not defined"
-    """
     if len(train_) > 4000:
         WD = []
         iter_ = len(train_) // 4000 + 1
@@ -180,8 +172,8 @@ def CramerWoldDistance(train_dataset, imputed, config, device):
         imputed = imputed.sample(frac=0.5, random_state=42)
     
     scaler = StandardScaler().fit(train)
-    train_ = scaler.transform(train).astype(np.float32)
-    imputed_ = scaler.transform(imputed).astype(np.float32)
+    train_ = scaler.transform(train)
+    imputed_ = scaler.transform(imputed)
     train_ = torch.from_numpy(train_).to(device)
     imputed_ = torch.from_numpy(imputed_).to(device)
     

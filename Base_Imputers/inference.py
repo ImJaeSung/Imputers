@@ -23,13 +23,13 @@ except:
     subprocess.run(["wandb", "login"], input=key[0], encoding='utf-8')
     import wandb
 
-project = "imputers" # put your WANDB project name
+project = "kdd_rebuttal1" # put your WANDB project name
 # entity = "wotjd1410" # put your WANDB username
 
 run = wandb.init(
     project=project, 
     # entity=entity, 
-    tags=["imputation", "Baseline"], # put tags of this python project
+    tags=["inference"], # put tags of this python project
 )
 #%%
 def str2bool(v):
@@ -58,7 +58,8 @@ def get_args(debug):
                         help="""
                         Dataset options: 
                         abalone, anuran, banknote, breast, concrete,
-                        kings, letter, loan, redwine, whitewine
+                        kings, letter, loan, redwine, whitewine,
+                        yeast, nomao
                         """)
     parser.add_argument("--missing_type", default="MAR", type=str,
                         help="how to generate missing: MCAR, MAR, MNARL, MNARQ") 
