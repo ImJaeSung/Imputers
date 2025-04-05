@@ -17,7 +17,7 @@ def impute(
     device):
     
     C = train_dataset.num_continuous_features
-    x_categ = torch.from_numpy(train_dataset.data[:, C:]).int()
+    x_categ = torch.from_numpy(train_dataset.data[:, C:]).float()
     x_cont = torch.from_numpy(train_dataset.data[:, :C].astype(np.float32))
     batch_size = config["batch_size"]
     

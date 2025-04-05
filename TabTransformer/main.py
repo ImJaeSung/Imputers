@@ -105,7 +105,7 @@ def main():
         mlp_hidden_mults=(4, 2),          # relative multiples of each hidden dimension of the last mlp to logits
         mlp_act=nn.ReLU(),                # activation for final mlp, defaults to relu, but could be anything else (selu etc)
         continuous_mean_std=cont_mean_std, # (optional) - normalize the continuous values before layer norm
-    )
+    ).to(device)
     #%%
     """the number of parameters"""
     count_parameters = lambda model: sum(p.numel() for p in model.parameters() if p.requires_grad)
