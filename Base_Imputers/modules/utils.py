@@ -145,6 +145,8 @@ def get_frequency(
 
 #%%
 def undummify(imputed, prefix_sep="###"):
+    imputed.columns = imputed.columns.astype(str)
+    
     cols2collapse = {
         col.split(prefix_sep)[0]: (prefix_sep in col) for col in imputed.columns
     }

@@ -2,6 +2,8 @@
 import os
 import argparse
 import importlib
+import time
+
 import pandas as pd
 from IPython.display import display
 import warnings
@@ -74,7 +76,7 @@ def get_args(debug):
 #%%
 def main():
     #%%
-    config = vars(get_args(debug=True)) # default configuration
+    config = vars(get_args(debug=False)) # default configuration
     set_random_seed(config['seed'])
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print('Current device is', device)
@@ -127,17 +129,20 @@ def main():
         ("EM", {"random_state": config["seed"]}),
         ("sinkhorn", {}),
         ("gain", {"random_state": config["seed"]}),
-        ("miwae", {"n_epochs": 2002, "batch_size": 64, "n_hidden": 128, "latent_size": 1, "random_state": config["seed"]}),
+        ("miwae", {"n_epochs": 2002, "batch_size": 32, "n_hidden": 128, "latent_size": 1, "random_state": config["seed"]}),
         ("miracle", {"lr":0.0005, "max_steps": 300, "n_hidden": p, "random_state": config["seed"]})
     ]
     #%%
     for method, args in imputer_list:
         print(f"====={method}=====")
+        start_time = time.time()
+        
         plugin = Imputers().get(method, **args)
         X = pd.DataFrame(train_dataset.data, columns=train_dataset.features)
         X = pd.get_dummies(
             X, columns=train_dataset.categorical_features, prefix_sep="###"
         ).astype(float)
+        
         out = plugin.fit_transform(X.copy())
         out.columns = X.columns
         out = undummify(out)
@@ -152,8 +157,15 @@ def main():
         out[train_dataset.integer_features] = out[train_dataset.integer_features].round(0).astype(int)
         imputed.append((method, out))
         display(out.head())
+        
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        print(f"{method} : {elapsed_time:.4f} seconds")
+
     #%%
     """ReMasker""" # third-party
+    start_train = time.time()
+    
     remasker_module = importlib.import_module('remasker.remasker_impute')
     importlib.reload(remasker_module)
     method = "ReMasker"
@@ -177,8 +189,15 @@ def main():
     out[train_dataset.integer_features] = out[train_dataset.integer_features].round(0).astype(int)
     imputed.append((method, out))
     display(out.head())
+    
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print(f"{method} : {elapsed_time:.4f} seconds")
+    
     #%%
     """KNN Imputer"""
+    start_train = time.time()
+    
     from sklearn.impute import KNNImputer
     method = "KNNI"
     print(f"====={method}=====")
@@ -201,7 +220,10 @@ def main():
     out[train_dataset.integer_features] = out[train_dataset.integer_features].round(0).astype(int)
     imputed.append((method, out))
     display(out.head())
-
+    
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print(f"{method} : {elapsed_time:.4f} seconds")
     #%%
     """imputed dataset save"""
     base_name = f"baseline_{config['missing_rate']}_{config['missing_type']}_{config['dataset']}"
