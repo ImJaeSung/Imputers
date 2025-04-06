@@ -52,9 +52,9 @@ def str2bool(v):
 def get_args(debug):
     parser = argparse.ArgumentParser('parameters')
     
-    parser.add_argument('--seed', type=int, default=0, 
+    parser.add_argument('--seed', type=int, default=2, 
                         help='seed for repeatable results')
-    parser.add_argument('--dataset', type=str, default='loan', 
+    parser.add_argument('--dataset', type=str, default='yeast', 
                         help="""
                         Dataset options: 
                         abalone, anuran, banknote, breast, concrete,
@@ -121,15 +121,15 @@ def main():
     #%%
     """configuration"""
     imputer_list = [
-        ("mean", {"random_state": config["seed"]}),
-        # ("median", {"random_state": config["seed"]}),
-        ("missforest", {"random_state": config["seed"]}), 
-        ("mice", {"random_state": config["seed"]}),
-        ("softimpute", {"random_state": config["seed"]}),
-        ("EM", {"random_state": config["seed"]}),
-        ("sinkhorn", {}),
-        ("gain", {"random_state": config["seed"]}),
-        ("miwae", {"n_epochs": 2002, "batch_size": 32, "n_hidden": 128, "latent_size": 1, "random_state": config["seed"]}),
+        # ("mean", {"random_state": config["seed"]}),
+        # # ("median", {"random_state": config["seed"]}),
+        # ("missforest", {"random_state": config["seed"]}), 
+        # ("mice", {"random_state": config["seed"]}),
+        # ("softimpute", {"random_state": config["seed"]}),
+        # ("EM", {"random_state": config["seed"]}),
+        # ("sinkhorn", {}),
+        # ("gain", {"random_state": config["seed"]}),
+        # ("miwae", {"n_epochs": 2002, "batch_size": 32, "n_hidden": 128, "latent_size": 1, "random_state": config["seed"]}),
         ("miracle", {"lr":0.0005, "max_steps": 300, "n_hidden": p, "random_state": config["seed"]})
     ]
     #%%
@@ -142,16 +142,21 @@ def main():
         X = pd.get_dummies(
             X, columns=train_dataset.categorical_features, prefix_sep="###"
         ).astype(float)
-        
+        #%%        
         out = plugin.fit_transform(X.copy())
+        
+        if out.isnull().values.any():
+            print(f"{method}: unstable result")
+            continue
+
         out.columns = X.columns
         out = undummify(out)
         out.columns = train_dataset.features
-            
+        
         """un-standardization of synthetic data"""
         for col, scaler in train_dataset.scalers.items():
             out[[col]] = scaler.inverse_transform(out[[col]])
-            
+    
         # post-process
         out[train_dataset.categorical_features] = out[train_dataset.categorical_features].astype(int)
         out[train_dataset.integer_features] = out[train_dataset.integer_features].round(0).astype(int)
