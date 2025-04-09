@@ -1,8 +1,6 @@
 #%%
 import numpy as np
 # %%
-import numpy as np
-# %%
 """
 Reference:
 [1] https://github.com/vanderschaarlab/hyperimpute/blob/main/src/hyperimpute/plugins/utils/metrics.py
@@ -35,7 +33,7 @@ def NMAE(train_dataset, imputed):
     mae = np.mean(np.absolute(original_ - imputation_), axis=0)
     std = np.std(original_, axis=0)
     
-    nmae = mae / std
+    nmae = mae / std if len(imputation_) > 0 else 0
 
     """categorical"""
     original = train_dataset.raw_data.values[:, C:]
@@ -44,7 +42,7 @@ def NMAE(train_dataset, imputed):
     imputation = imputed.values[:, C:]
     imputation = imputation[train_dataset.mask[:, C:] == 1]
     
-    error = 1. - (original == imputation).mean()
+    error = 1. - (original == imputation).mean() if len(imputation) > 0 else 0
 
     return nmae, error
 #%%
@@ -76,7 +74,7 @@ def NRMSE(train_dataset, imputed):
     rmse = np.mean(((original_ - imputation_) ** 2), axis=0)
     std = np.std(original_, axis=0)
     
-    nrmse = np.sqrt(rmse / std**2)
+    nrmse = np.sqrt(rmse / std**2) if len(imputation_) > 0 else 0
 
     """categorical"""
     original = train_dataset.raw_data.values[:, C:]
@@ -85,11 +83,11 @@ def NRMSE(train_dataset, imputed):
     imputation = imputed.values[:, C:]
     imputation = imputation[train_dataset.mask[:, C:] == 1]
     
-    error = 1. - (original == imputation).mean()
+    error = 1. - (original == imputation).mean() if len(imputation) > 0 else 0
 
     return nrmse, error
 #%%
-def elementwise(train_dataset, imputed):
+def SMAPE(train_dataset, imputed):
     """continuous"""
     C = train_dataset.num_continuous_features
     original = train_dataset.raw_data.values[:, :C]
@@ -100,7 +98,7 @@ def elementwise(train_dataset, imputed):
     
     smape = np.abs(original - imputation)
     smape /= (np.abs(original) + np.abs(imputation)) + 1e-6 # numerical stability
-    smape = smape.mean()
+    smape = smape.mean() if len(imputation) > 0 else 0
     
     """categorical"""
     original = train_dataset.raw_data.values[:, C:]
@@ -109,8 +107,7 @@ def elementwise(train_dataset, imputed):
     imputation = imputed.values[:, C:]
     imputation = imputation[train_dataset.mask[:, C:] == 1]
     
-    # accuracy = (original == imputation).mean()
-    error = 1. - (original == imputation).mean()
+    error = 1. - (original == imputation).mean() if len(imputation) > 0 else 0
     
     return smape, error
 #%%

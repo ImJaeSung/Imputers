@@ -30,7 +30,7 @@ except:
     subprocess.run(["wandb", "login"], input=key[0], encoding='utf-8')
     import wandb
 
-project = "kdd_rebuttal1" # put your WANDB project name
+project = "memory_check" # put your WANDB project name
 # entity = "wotjd1410" # put your WANDB username
 
 run = wandb.init(
@@ -52,6 +52,7 @@ def str2bool(v):
 def get_args(debug):
     parser = argparse.ArgumentParser('parameters')
     
+    parser.add_argument('--model', type=str, default='mean')
     parser.add_argument('--seed', type=int, default=2, 
                         help='seed for repeatable results')
     parser.add_argument('--dataset', type=str, default='yeast', 
@@ -120,20 +121,24 @@ def main():
     print(imputer_list)
     #%%
     """configuration"""
-    imputer_list = [
-        # ("mean", {"random_state": config["seed"]}),
-        # # ("median", {"random_state": config["seed"]}),
-        # ("missforest", {"random_state": config["seed"]}), 
-        # ("mice", {"random_state": config["seed"]}),
-        # ("softimpute", {"random_state": config["seed"]}),
-        # ("EM", {"random_state": config["seed"]}),
-        # ("sinkhorn", {}),
-        # ("gain", {"random_state": config["seed"]}),
-        # ("miwae", {"n_epochs": 2002, "batch_size": 32, "n_hidden": 128, "latent_size": 1, "random_state": config["seed"]}),
-        ("miracle", {"lr":0.0005, "max_steps": 300, "n_hidden": p, "random_state": config["seed"]})
-    ]
-    #%%
-    for method, args in imputer_list:
+    hyperimpute_models = {
+        "mean": {"random_state": config["seed"]},
+        # "median": {"random_state": config["seed"]},
+        "missforest": {"random_state": config["seed"]}, 
+        "mice": {"random_state": config["seed"]},
+        "softimpute": {"random_state": config["seed"]},
+        "EM": {"random_state": config["seed"]},
+        "sinkhorn": {},
+        "gain": {"random_state": config["seed"]},
+        "miwae": {"n_epochs": 2002, "batch_size": 16, "n_hidden": 128, "latent_size": 1, "random_state": config["seed"]},
+        "miracle": {"lr": 0.0005, "max_steps": 300, "n_hidden": p, "random_state": config["seed"]}
+    }
+
+    imputed = []
+
+    if config["model"] in hyperimpute_models:
+        method = config["model"]
+        args = hyperimpute_models[method]
         print(f"====={method}=====")
         start_time = time.time()
         
@@ -142,21 +147,54 @@ def main():
         X = pd.get_dummies(
             X, columns=train_dataset.categorical_features, prefix_sep="###"
         ).astype(float)
-        #%%        
+        
         out = plugin.fit_transform(X.copy())
         
         if out.isnull().values.any():
             print(f"{method}: unstable result")
-            continue
+        else:
+            out.columns = X.columns
+            out = undummify(out)
+            out.columns = train_dataset.features
+            
+            # un-standardization of synthetic data
+            for col, scaler in train_dataset.scalers.items():
+                out[[col]] = scaler.inverse_transform(out[[col]])
+        
+            # post-process
+            out[train_dataset.categorical_features] = out[train_dataset.categorical_features].astype(int)
+            out[train_dataset.integer_features] = out[train_dataset.integer_features].round(0).astype(int)
+            imputed.append((method, out))
+            display(out.head())
+            
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        print(f"{method} : {elapsed_time:.4f} seconds")
 
-        out.columns = X.columns
+    #%%
+    # """ReMasker""" # third-party
+    elif config["model"] == "ReMasker":
+        
+        start_time = time.time()
+        
+        remasker_module = importlib.import_module('remasker.remasker_impute')
+        importlib.reload(remasker_module)
+        method = "ReMasker"
+        print(f"====={method}=====")
+        imputer = remasker_module.ReMasker()
+        
+        X = pd.DataFrame(train_dataset.data, columns=train_dataset.features)
+        X = pd.get_dummies(
+            X, columns=train_dataset.categorical_features, prefix_sep="###"
+        ).astype(float)
+        out = imputer.fit_transform(X)
+        out = pd.DataFrame(out, columns=X.columns)
         out = undummify(out)
-        out.columns = train_dataset.features
         
         """un-standardization of synthetic data"""
         for col, scaler in train_dataset.scalers.items():
             out[[col]] = scaler.inverse_transform(out[[col]])
-    
+        
         # post-process
         out[train_dataset.categorical_features] = out[train_dataset.categorical_features].astype(int)
         out[train_dataset.integer_features] = out[train_dataset.integer_features].round(0).astype(int)
@@ -166,69 +204,38 @@ def main():
         end_time = time.time()
         elapsed_time = end_time - start_time
         print(f"{method} : {elapsed_time:.4f} seconds")
-
-    #%%
-    """ReMasker""" # third-party
-    start_train = time.time()
-    
-    remasker_module = importlib.import_module('remasker.remasker_impute')
-    importlib.reload(remasker_module)
-    method = "ReMasker"
-    print(f"====={method}=====")
-    imputer = remasker_module.ReMasker()
-    
-    X = pd.DataFrame(train_dataset.data, columns=train_dataset.features)
-    X = pd.get_dummies(
-        X, columns=train_dataset.categorical_features, prefix_sep="###"
-    ).astype(float)
-    out = imputer.fit_transform(X)
-    out = pd.DataFrame(out, columns=X.columns)
-    out = undummify(out)
-    
-    """un-standardization of synthetic data"""
-    for col, scaler in train_dataset.scalers.items():
-        out[[col]] = scaler.inverse_transform(out[[col]])
-    
-    # post-process
-    out[train_dataset.categorical_features] = out[train_dataset.categorical_features].astype(int)
-    out[train_dataset.integer_features] = out[train_dataset.integer_features].round(0).astype(int)
-    imputed.append((method, out))
-    display(out.head())
-    
-    end_time = time.time()
-    elapsed_time = end_time - start_time
-    print(f"{method} : {elapsed_time:.4f} seconds")
     
     #%%
-    """KNN Imputer"""
-    start_train = time.time()
-    
-    from sklearn.impute import KNNImputer
-    method = "KNNI"
-    print(f"====={method}=====")
-    knnimputer = KNNImputer(n_neighbors=5)
-    
-    X = pd.DataFrame(train_dataset.data, columns=train_dataset.features)
-    X = pd.get_dummies(
-        X, columns=train_dataset.categorical_features, prefix_sep="###"
-    ).astype(float)
-    out = knnimputer.fit_transform(X)
-    out = pd.DataFrame(out, columns=X.columns)
-    out = undummify(out)
-    
-    """un-standardization of synthetic data"""
-    for col, scaler in train_dataset.scalers.items():
-        out[[col]] = scaler.inverse_transform(out[[col]])
-    
-    # post-process
-    out[train_dataset.categorical_features] = out[train_dataset.categorical_features].astype(int)
-    out[train_dataset.integer_features] = out[train_dataset.integer_features].round(0).astype(int)
-    imputed.append((method, out))
-    display(out.head())
-    
-    end_time = time.time()
-    elapsed_time = end_time - start_time
-    print(f"{method} : {elapsed_time:.4f} seconds")
+    # """KNN Imputer"""
+    elif config["model"] == "KNNI":
+        start_time = time.time()
+        
+        from sklearn.impute import KNNImputer
+        method = "KNNI"
+        print(f"====={method}=====")
+        knnimputer = KNNImputer(n_neighbors=5)
+        
+        X = pd.DataFrame(train_dataset.data, columns=train_dataset.features)
+        X = pd.get_dummies(
+            X, columns=train_dataset.categorical_features, prefix_sep="###"
+        ).astype(float)
+        out = knnimputer.fit_transform(X)
+        out = pd.DataFrame(out, columns=X.columns)
+        out = undummify(out)
+        
+        """un-standardization of synthetic data"""
+        for col, scaler in train_dataset.scalers.items():
+            out[[col]] = scaler.inverse_transform(out[[col]])
+        
+        # post-process
+        out[train_dataset.categorical_features] = out[train_dataset.categorical_features].astype(int)
+        out[train_dataset.integer_features] = out[train_dataset.integer_features].round(0).astype(int)
+        imputed.append((method, out))
+        display(out.head())
+        
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        print(f"{method} : {elapsed_time:.4f} seconds")
     #%%
     """imputed dataset save"""
     base_name = f"baseline_{config['missing_rate']}_{config['missing_type']}_{config['dataset']}"

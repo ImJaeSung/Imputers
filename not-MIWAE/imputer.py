@@ -3,6 +3,7 @@ import os
 import torch
 import argparse
 import importlib
+import ime
 
 import modules
 from modules import utils
@@ -142,9 +143,15 @@ def main():
     if config["multiple"]:
         results = evaluation_multiple.evaluate(train_dataset, model, config['M'])
     else:
+        start_time = time.time()
+        
         imputed = model.impute(
-            train_dataset, M=config['M'], seed=config["seed"]
-        )
+            train_dataset, M=config['M'], seed=config["seed"])
+        
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        print(f"not-MIWAE (imputation): {elapsed_time:.4f} seconds")
+        
         results = evaluation.evaluate(imputed, train_dataset, test_dataset, config, device)
     
     for x, y in results._asdict().items():

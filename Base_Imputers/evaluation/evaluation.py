@@ -19,8 +19,8 @@ Metrics = namedtuple(
         "mae",
         "armae",
         "KL",
-        "base_reg", 
-        "syn_reg", 
+        # "base_reg", 
+        # "syn_reg", 
         "base_cls", 
         "syn_cls",
         "model_selection", 
@@ -57,8 +57,8 @@ def evaluate(imputed, train_dataset, test_dataset, config, device):
     # print("\n8. Statistical Fidelity: Cramer-Wold Distance...")
     # CW = metrics_stat.CramerWoldDistance(train_dataset, imputed, config, device)
 
-    print("\n9. Machine Learning Utility: Regression...")
-    base_reg, syn_reg = metrics_MLu.MLu_reg(train_dataset, test_dataset, imputed)
+    # print("\n9. Machine Learning Utility: Regression...")
+    # base_reg, syn_reg = metrics_MLu.MLu_reg(train_dataset, test_dataset, imputed)
     
     print("\n10. Machine Learning Utility: Classification...")
     base_cls, syn_cls, model_selection, feature_selection = metrics_MLu.MLu_cls(train_dataset, test_dataset, imputed)
@@ -80,5 +80,5 @@ def evaluate(imputed, train_dataset, test_dataset, config, device):
 
     return Metrics(
         smape, error, arsmape, rmse, armse, mae, armae, 
-        KL, base_reg, syn_reg, base_cls, syn_cls, model_selection, feature_selection
+        KL, base_cls, syn_cls, model_selection, feature_selection
     )

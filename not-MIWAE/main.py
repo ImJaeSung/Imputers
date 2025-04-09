@@ -7,6 +7,7 @@ import sys
 import importlib
 import argparse
 import ast
+import time
 
 import numpy as np
 
@@ -169,6 +170,7 @@ def main():
     importlib.reload(train_module)
     optimizer = torch.optim.Adam(model.parameters(), lr=config['lr'])
 
+    start_time = time.time()
     for epoch in range(config["epochs"]):
         logs = train_module.train_function(
             model, 
@@ -185,6 +187,10 @@ def main():
 
         """update log"""
         wandb.log({x: np.mean(y) for x, y in logs.items()})
+    
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print(f"not-MIWAE (train): {elapsed_time:.4f} seconds")
     # %%
     """model save"""
     base_name = f"not-MIWAE_{config['dataset']}_{config['missing_type']}_{config['missing_rate']}"

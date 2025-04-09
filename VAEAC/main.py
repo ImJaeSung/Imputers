@@ -2,6 +2,7 @@
 import os
 import argparse
 import importlib
+import time
 
 from sklearn.model_selection import train_test_split
 
@@ -178,6 +179,7 @@ def main():
     print(f"Number of Parameters: {num_params/1000000:.1f}M")
     #%%
     """train"""
+    start_time = time.time()
     train_module = importlib.import_module('modules.train')
     importlib.reload(train_module)
     best_state = train_module.train_function(
@@ -190,6 +192,10 @@ def main():
         device,
         verbose=True
     )
+    
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print(f"VAEAC (train): {elapsed_time:.4f} seconds")
     #%%
     """model save"""
     base_name = f"{config['missing_type']}_{config['missing_rate']}_{config['dataset']}"

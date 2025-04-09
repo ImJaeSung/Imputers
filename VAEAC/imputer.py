@@ -147,9 +147,11 @@ def main():
         results = evaluation_multiple.evaluate(
             train_dataset, model, M=config["M"]
         )
-    else:
-        imputed = model.impute(train_dataset, M=config["M"])
+    else:        
+        start_time = time.time()
         
+        imputed = model.impute(train_dataset, M=config["M"])
+
         # continuous: mean, discrete: mode
         cont_imputed = torch.mean(
             torch.stack(imputed)[:, :, :train_dataset.num_continuous_features],
@@ -162,8 +164,12 @@ def main():
         imputed = torch.cat((cont_imputed, disc_imputed), dim=1) # [M, N, P]
         imputed = pd.DataFrame(imputed, columns=train_dataset.features)
 
-        results = evaluation.evaluate(imputed, train_dataset, test_dataset, config)
-    
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        print(f"VAEAC (imputation): {elapsed_time:.4f} seconds")
+        
+        results = evaluation.evaluate(imputed, train_dataset, test_dataset, config, device)
+
     for x, y in results._asdict().items():
         print(f"{x}: {y:.3f}")
         wandb.log({f"{x}": y})

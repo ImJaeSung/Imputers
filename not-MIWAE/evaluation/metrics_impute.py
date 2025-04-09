@@ -33,7 +33,7 @@ def NMAE(train_dataset, imputed):
     mae = np.mean(np.absolute(original_ - imputation_), axis=0)
     std = np.std(original_, axis=0)
     
-    nmae = mae / std
+    nmae = mae / std if len(imputation_) > 0 else 0
 
     """categorical"""
     original = train_dataset.raw_data.values[:, C:]
@@ -42,7 +42,7 @@ def NMAE(train_dataset, imputed):
     imputation = imputed.values[:, C:]
     imputation = imputation[train_dataset.mask[:, C:] == 1]
     
-    error = 1. - (original == imputation).mean()
+    error = 1. - (original == imputation).mean() if len(imputation) > 0 else 0
 
     return nmae, error
 #%%
@@ -74,7 +74,7 @@ def NRMSE(train_dataset, imputed):
     rmse = np.mean(((original_ - imputation_) ** 2), axis=0)
     std = np.std(original_, axis=0)
     
-    nrmse = np.sqrt(rmse / std**2)
+    nrmse = np.sqrt(rmse / std**2) if len(imputation_) > 0 else 0
 
     """categorical"""
     original = train_dataset.raw_data.values[:, C:]
@@ -83,7 +83,7 @@ def NRMSE(train_dataset, imputed):
     imputation = imputed.values[:, C:]
     imputation = imputation[train_dataset.mask[:, C:] == 1]
     
-    error = 1. - (original == imputation).mean()
+    error = 1. - (original == imputation).mean() if len(imputation) > 0 else 0
 
     return nrmse, error
 #%%
@@ -97,11 +97,8 @@ def SMAPE(train_dataset, imputed):
     imputation = imputation[train_dataset.mask[:, :C] == 1]
     
     smape = np.abs(original - imputation)
-    # smape /= (np.abs(original) + np.abs(imputation)) + 1e-6 # numerical stability
-    # smape = smape.mean()
-    
-    denom = np.abs(original) + np.abs(imputation) + 1e-6
-    smape = np.divide(smape, denom, where=(denom != 0)).mean()
+    smape /= (np.abs(original) + np.abs(imputation)) + 1e-6 # numerical stability
+    smape = smape.mean() if len(imputation) > 0 else 0
     
     """categorical"""
     original = train_dataset.raw_data.values[:, C:]
@@ -110,7 +107,7 @@ def SMAPE(train_dataset, imputed):
     imputation = imputed.values[:, C:]
     imputation = imputation[train_dataset.mask[:, C:] == 1]
     
-    error = 1. - (original == imputation).mean()
+    error = 1. - (original == imputation).mean() if len(imputation) > 0 else 0
     
     return smape, error
 #%%
