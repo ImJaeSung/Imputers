@@ -1,10 +1,11 @@
 #%%
 import os
-import torch
+
 import argparse
 import importlib
 import pandas as pd
 
+import torch
 from torch.utils.data import DataLoader
 
 import modules
@@ -54,7 +55,7 @@ def get_args(debug):
                         EM, sinkhorn, gain, miwae, miracle,
                         ReMasker, KNNI, complete, zero
                         """)
-    parser.add_argument('--dataset', type=str, default='loan', 
+    parser.add_argument('--dataset', type=str, default='nomao', 
                         help="""
                         Dataset options: 
                         abalone, anuran, banknote, breast, concrete,
@@ -63,7 +64,7 @@ def get_args(debug):
                         """)
     parser.add_argument("--missing_type", default="MAR", type=str,
                         help="how to generate missing: MCAR, MAR, MNARL, MNARQ") 
-    parser.add_argument("--missing_rate", default=0.2, type=float,
+    parser.add_argument("--missing_rate", default=0.3, type=float,
                         help="missing rate") 
     
     if debug:
@@ -76,7 +77,7 @@ def main():
     config = vars(get_args(debug=False)) # default configuration
     
     """model load"""
-    base_name = f"baseline_{config['missing_rate']}_{config['missing_type']}_{config['dataset']}"
+    base_name = f"baseline_{config['model']}_{config['missing_rate']}_{config['missing_type']}_{config['dataset']}"
     artifact = wandb.use_artifact(
         f"{project}/{base_name}:v{config['ver']}",
         type='dataset')

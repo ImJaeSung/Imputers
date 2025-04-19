@@ -30,7 +30,7 @@ except:
     subprocess.run(["wandb", "login"], input=key[0], encoding='utf-8')
     import wandb
 
-project = "memory_check" # put your WANDB project name
+project = "kdd_rebuttal1" # put your WANDB project name
 # entity = "wotjd1410" # put your WANDB username
 
 run = wandb.init(
@@ -52,10 +52,10 @@ def str2bool(v):
 def get_args(debug):
     parser = argparse.ArgumentParser('parameters')
     
-    parser.add_argument('--model', type=str, default='mean')
+    parser.add_argument('--model', type=str, default='KNNI')
     parser.add_argument('--seed', type=int, default=2, 
                         help='seed for repeatable results')
-    parser.add_argument('--dataset', type=str, default='yeast', 
+    parser.add_argument('--dataset', type=str, default='nomao', 
                         help="""
                         Dataset options: 
                         abalone, anuran, banknote, breast, concrete,
@@ -130,7 +130,7 @@ def main():
         "EM": {"random_state": config["seed"]},
         "sinkhorn": {},
         "gain": {"random_state": config["seed"]},
-        "miwae": {"n_epochs": 2002, "batch_size": 16, "n_hidden": 128, "latent_size": 1, "random_state": config["seed"]},
+        "miwae": {"n_epochs": 2002, "batch_size":64, "n_hidden": 128, "latent_size": 1, "random_state": config["seed"]},
         "miracle": {"lr": 0.0005, "max_steps": 300, "n_hidden": p, "random_state": config["seed"]}
     }
 
@@ -238,7 +238,7 @@ def main():
         print(f"{method} : {elapsed_time:.4f} seconds")
     #%%
     """imputed dataset save"""
-    base_name = f"baseline_{config['missing_rate']}_{config['missing_type']}_{config['dataset']}"
+    base_name = f"baseline_{config['model']}_{config['missing_rate']}_{config['missing_type']}_{config['dataset']}"
     model_dir = f"./assets/models/{base_name}/"
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)

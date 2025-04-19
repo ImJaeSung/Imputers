@@ -3,7 +3,7 @@ import os
 import torch
 import argparse
 import importlib
-import ime
+import time
 
 import modules
 from modules import utils
@@ -47,7 +47,7 @@ def get_args(debug):
     
     parser.add_argument('--ver', type=int, default=0, 
                         help='model version number')
-    parser.add_argument('--dataset', type=str, default='loan', 
+    parser.add_argument('--dataset', type=str, default='nomao', 
                         help="""
                         Dataset options: 
                         abalone, anuran, banknote, breast, concrete,

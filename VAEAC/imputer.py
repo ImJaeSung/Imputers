@@ -1,8 +1,10 @@
 #%%
 import os
+import time
 import argparse
 import importlib
 import pandas as pd
+import numpy as np
 
 import torch
 
@@ -46,17 +48,17 @@ def str2bool(v):
 def get_args(debug):
     parser = argparse.ArgumentParser('parameters')
     
-    parser.add_argument('--ver', type=int, default=0, 
+    parser.add_argument('--ver', type=int, default=3, 
                         help='model version number')
     
-    parser.add_argument('--dataset', type=str, default='abalone', 
+    parser.add_argument('--dataset', type=str, default='nomao', 
                         help="""
                         Dataset options: 
                         loan, kings, banknote, concrete, redwine, 
                         whitewine, breast, letter, abalone, anuran
                         """)
     
-    parser.add_argument("--missing_type", default="MCAR", type=str,
+    parser.add_argument("--missing_type", default="MAR", type=str,
                         help="how to generate missing: MCAR, MAR, MNARL, MNARQ") 
     parser.add_argument("--missing_rate", default=0.3, type=float,
                         help="missing rate")
@@ -163,7 +165,18 @@ def main():
         )[0] # [N, P(disc)]
         imputed = torch.cat((cont_imputed, disc_imputed), dim=1) # [M, N, P]
         imputed = pd.DataFrame(imputed, columns=train_dataset.features)
-
+        
+        ### for checking
+        imputed_mean = imputed[train_dataset.continuous_features].mean()
+        raw_mean = train_dataset.raw_data[train_dataset.continuous_features].mean()
+        unbiased_ = ((imputed_mean - raw_mean) / raw_mean)
+        # unbiased_ = np.abs((imputed_mean - raw_mean) / raw_mean)
+        print(unbiased_.mean())
+        
+        imputed_var = imputed[train_dataset.continuous_features].var()
+        raw_var = train_dataset.raw_data[train_dataset.continuous_features].var()
+        print((imputed_var / raw_var).mean())
+            
         end_time = time.time()
         elapsed_time = end_time - start_time
         print(f"VAEAC (imputation): {elapsed_time:.4f} seconds")

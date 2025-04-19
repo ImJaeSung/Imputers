@@ -63,7 +63,7 @@ def str2bool(v):
 def get_args(debug):
     parser = argparse.ArgumentParser('parameters')
 
-    parser.add_argument('--dataset', type=str, default='loan', 
+    parser.add_argument('--dataset', type=str, default='nomao', 
                         help="""
                         Dataset options: 
                         loan, kings, banknote, concrete, redwine, 
@@ -73,14 +73,14 @@ def get_args(debug):
     parser.add_argument("--seed", default=0, type=int,
                         help="seed for repeatable results") 
 
-    parser.add_argument("--missing_type", default="MCAR", type=str,
+    parser.add_argument("--missing_type", default="MAR", type=str,
                         help="how to generate missing: MCAR, MAR, MNARL, MNARQ") 
     parser.add_argument("--missing_rate", default=0.3, type=float,
                         help="missing rate")
      
     parser.add_argument("--test_size", default=0.2, type=float,
                         help="the ratio of train test split") 
-    parser.add_argument('--batch_size', default=64, type=int,
+    parser.add_argument('--batch_size', default=512, type=int,
                         help='batch size')  
     parser.add_argument('--epochs', default=300, type=int,
                         help='Number epochs to train VAEAC.')
