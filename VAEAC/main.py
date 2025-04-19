@@ -67,9 +67,10 @@ def get_args(debug):
                         help="""
                         Dataset options: 
                         loan, kings, banknote, concrete, redwine, 
-                        whitewine, breast, letter, abalone, anuran
+                        whitewine, breast, letter, abalone, anuran,
+                        spam, diabetes, dna, ncbirths
                         """)
-
+    parser.add_argument("--model", default='VAEAC', type=str) 
     parser.add_argument("--seed", default=0, type=int,
                         help="seed for repeatable results") 
 

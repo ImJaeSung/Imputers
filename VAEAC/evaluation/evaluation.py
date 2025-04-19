@@ -61,7 +61,10 @@ def evaluate(imputed, train_dataset, test_dataset, config, device):
     # base_reg, syn_reg = metrics_MLu.MLu_reg(train_dataset, test_dataset, imputed)
     
     print("\n10. Machine Learning Utility: Classification...")
-    base_cls, syn_cls, model_selection, feature_selection = metrics_MLu.MLu_cls(train_dataset, test_dataset, imputed)
+    if config["dataset"] == "dti":
+        base_cls, syn_cls, model_selection, feature_selection = 0, 0, 0, 0
+    else:
+        base_cls, syn_cls, model_selection, feature_selection = metrics_MLu.MLu_cls(train_dataset, test_dataset, imputed)
     
     # print("\n11. Privacy: K-anonimity...")
     # Kanon_base, Kanon_syn = metrics_privacy.kAnonymization(train_dataset, imputed)
