@@ -22,7 +22,7 @@ except:
     subprocess.run(["wandb", "login"], input=key[0], encoding='utf-8')
     import wandb
 
-project = "ReMasker" # put your WANDB project name
+project = "dimvae_baselines" # put your WANDB project name
 # entity = "wotjd1410" # put your WANDB username
 
 run = wandb.init(
@@ -49,6 +49,8 @@ def str2bool(v):
 #%%
 def get_args(debug):
     parser = argparse.ArgumentParser('parameters')
+    parser.add_argument("--model", default="remasker", type=str)
+    
     parser.add_argument("--seed", type=int, default=0, 
                         help="seed for repeatable results")
     # Dataset parameters
@@ -61,14 +63,14 @@ def get_args(debug):
     parser.add_argument("--test_size", default=0.2, type=float,
                         help="the ratio of train test split") 
     
-    parser.add_argument("--missing_type", default="MCAR", type=str,
+    parser.add_argument("--missing_type", default="MAR", type=str,
                         help="how to generate missing: MCAR, MAR, MNARL, MNARQ") 
     parser.add_argument("--missing_rate", default=0.3, type=float,
                         help="missing rate") 
     parser.add_argument('--pin_mem', action='store_false')
     
     # training
-    parser.add_argument('--batch_size', default=64, type=int,
+    parser.add_argument('--batch_size', default=8, type=int,
                         help='Batch size per GPU (effective batch size is batch_size * accum_iter * # gpus')
     parser.add_argument('--max_epochs', default=600, type=int)
     parser.add_argument('--accum_iter', default=1, type=int,
@@ -77,13 +79,13 @@ def get_args(debug):
     # Model parameters
     parser.add_argument('--mask_ratio', default=0.5, type=float, 
                         help='Masking ratio (percentage of removed patches).')
-    parser.add_argument('--embed_dim', default=64, type=int, 
+    parser.add_argument('--embed_dim', default=32, type=int, 
                          help='embedding dimensions')
-    parser.add_argument('--depth', default=8, type=int, 
+    parser.add_argument('--depth', default=4, type=int, 
                         help='encoder depth')
-    parser.add_argument('--decoder_depth', default=4, type=int, 
+    parser.add_argument('--decoder_depth', default=2, type=int, 
                         help='decoder depth')
-    parser.add_argument('--num_heads', default=4, type=int, 
+    parser.add_argument('--num_heads', default=2, type=int, 
                         help='number of heads')
     parser.add_argument('--mlp_ratio', default=4., type=float, 
                         help='mlp ratio')

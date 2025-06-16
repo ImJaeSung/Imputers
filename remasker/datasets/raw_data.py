@@ -1,5 +1,8 @@
 #%%
+import numpy as np
 import pandas as pd
+from scipy.io import loadmat
+
 #%%
 def load_raw_data(dataset):
     if dataset == "abalone":
@@ -242,5 +245,102 @@ def load_raw_data(dataset):
         ]
         integer_features = []
         ClfTarget = "quality"
+        
+    elif dataset == "toxicity":
+        base = loadmat("./data/TOX-171.mat")
+        base = np.concatenate([base['X'], base['Y']], axis=1)
+        
+        data = pd.DataFrame(base)
+        columns = [f"col{i}" for i in range(base.shape[1]-1)]
+        columns += ["class"]
+        data.columns = columns
+        
+        columns.remove("class")
+        continuous_features = columns
+        categorical_features = ["class"]
+        integer_features = []
+        
+        ClfTarget = "class"
+        
+    elif dataset == "cll":
+        base = loadmat("./data/CLL_SUB_111.mat")
+        base = np.concatenate([base['X'], base['Y']], axis=1)
+        
+        data = pd.DataFrame(base)
+        columns = [f"col{i}" for i in range(base.shape[1]-1)]
+        columns += ["class"]
+        data.columns = columns
+        
+        columns.remove("class")
+        continuous_features = columns
+        categorical_features = ["class"]
+        integer_features = []
+        
+        ClfTarget = "class"
+        
+    elif dataset == "orl":
+        base = loadmat("./data/ORL.mat")
+        base = np.concatenate([base['X'], base['Y']], axis=1)
+        
+        data = pd.DataFrame(base)
+        columns = [f"col{i}" for i in range(base.shape[1]-1)]
+        columns += ["class"]
+        data.columns = columns
+        
+        columns.remove("class")
+        continuous_features = columns
+        categorical_features = ["class"]
+        integer_features = []
+
+        ClfTarget = "class"
+        
+    elif dataset == "glioma":
+        base = loadmat("./data/GLIOMA.mat")
+        base = np.concatenate([base['X'], base['Y']], axis=1)
+        
+        data = pd.DataFrame(base)
+        columns = [f"col{i}" for i in range(base.shape[1]-1)]
+        columns += ["class"]
+        data.columns = columns
+        
+        columns.remove("class")
+        continuous_features = columns
+        categorical_features = ["class"]
+        integer_features = []
+
+        ClfTarget = "class"
+
+    elif dataset == "yale":
+        base = loadmat("./data/Yale.mat")
+        base = np.concatenate([base['X'], base['Y']], axis=1)
+        
+        data = pd.DataFrame(base)
+        columns = [f"col{i}" for i in range(base.shape[1]-1)]
+        columns += ["class"]
+        data.columns = columns
+        
+        columns.remove("class")
+        continuous_features = columns
+        categorical_features = ["class"]
+        integer_features = []
+
+        ClfTarget = "class"
+        
+    elif dataset == "warppie":
+        base = loadmat("./data/warpPIE10P.mat")
+        base = np.concatenate([base['X'], base['Y']], axis=1)
+        
+        data = pd.DataFrame(base)
+        columns = [f"col{i}" for i in range(base.shape[1]-1)]
+        columns += ["class"]
+        data.columns = columns
+        
+        columns.remove("class")
+        continuous_features = columns
+        categorical_features = ["class"]
+        integer_features = []
+
+        ClfTarget = "class"        
+        
         
     return data, continuous_features, categorical_features, integer_features, ClfTarget
