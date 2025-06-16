@@ -279,7 +279,7 @@ class ReMasker(nn.Module):
                 else:
                     imputed = torch.cat((imputed, pred), 0)
 
-        imputed = pd.DataFrame(imputed, columns=train_dataset.features)
+        imputed = pd.DataFrame(imputed.cpu().numpy(), columns=train_dataset.features)
         
         """un-standardization of synthetic data"""
         for col, scaler in train_dataset.scalers.items():
