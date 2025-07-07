@@ -26,7 +26,7 @@ except:
     subprocess.run(["wandb", "login"], input=key[0], encoding='utf-8')
     import wandb
 
-project = "VAEAC" # put your WANDB project name
+project = "dimvae_baselines2" # put your WANDB project name
 # entity = "wotjd1410" # put your WANDB username
 
 run = wandb.init(
@@ -81,7 +81,7 @@ def get_args(debug):
      
     parser.add_argument("--test_size", default=0.2, type=float,
                         help="the ratio of train test split") 
-    parser.add_argument('--batch_size', default=512, type=int,
+    parser.add_argument('--batch_size', default=256, type=int,
                         help='batch size')  
     parser.add_argument('--epochs', default=300, type=int,
                         help='Number epochs to train VAEAC.')
@@ -136,27 +136,30 @@ def main():
         train=True
     )
 
-    # train-validation split
-    train_data, valid_data = train_test_split(
-        train_dataset.data, 
-        test_size=config["validation_ratio"], 
-        random_state=config["seed"]
-    )
+    # # train-validation split
+    # train_data, valid_data = train_test_split(
+    #     train_dataset.data, 
+    #     test_size=config["validation_ratio"], 
+    #     random_state=config["seed"]
+    # )
 
     train_dataloader = DataLoader(
-        train_data, 
+        train_dataset.data, 
         batch_size=config["batch_size"], 
         shuffle=True,
         num_workers=0, 
         drop_last=False
     )
-    valid_dataloader = DataLoader(
-        valid_data, 
-        batch_size=config["batch_size"], 
-        shuffle=True,
-        num_workers=0, 
-        drop_last=False
-    )
+    # valid_dataloader = DataLoader(
+    #     valid_data, 
+    #     batch_size=config["batch_size"], 
+    #     shuffle=True,
+    #     num_workers=0, 
+    #     drop_last=False
+    # )
+    print(train_dataset.data.shape)
+    print(len(train_dataset.continuous_features))
+    print(len(train_dataset.categorical_features))
     #%%
     """model"""
     model_module = importlib.import_module('modules.model')
@@ -183,13 +186,13 @@ def main():
     start_time = time.time()
     train_module = importlib.import_module('modules.train')
     importlib.reload(train_module)
-    best_state = train_module.train_function(
+    train_module.train_function(
         model,
         networks,
         config,
         optimizer,
         train_dataloader,
-        valid_dataloader,
+        # valid_dataloader,
         device,
         verbose=True
     )
@@ -199,13 +202,13 @@ def main():
     print(f"VAEAC (train): {elapsed_time:.4f} seconds")
     #%%
     """model save"""
-    base_name = f"{config['missing_type']}_{config['missing_rate']}_{config['dataset']}"
+    base_name = f"{config['model']}_{config['missing_type']}_{config['missing_rate']}_{config['dataset']}"
     model_dir = f"./assets/models/{base_name}"
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
     model_name = f"VAEAC_{base_name}_{config['seed']}"
 
-    torch.save(best_state['model_state_dict'], f"./{model_dir}/{model_name}.pth")
+    torch.save(model.state_dict(), f"./{model_dir}/{model_name}.pth")
     artifact = wandb.Artifact(
         "_".join(model_name.split("_")[:-1]), 
         type='model',

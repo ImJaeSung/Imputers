@@ -20,7 +20,7 @@ except:
     subprocess.run(["wandb", "login"], input=key[0], encoding='utf-8')
     import wandb
 
-project = "GAIN" # put your WANDB project name
+project = "dimvae_baselines2" # put your WANDB project name
 # entity = "wotjd1410" # put your WANDB username
 
 run = wandb.init(
@@ -42,6 +42,7 @@ def str2bool(v):
 #%%
 def get_args(debug):
     parser = argparse.ArgumentParser('parameters')
+    parser.add_argument("--model", default="gain", type=str)
     parser.add_argument("--seed", default=0, type=int,
                         help="seed for repeatable results") 
     
@@ -52,8 +53,7 @@ def get_args(debug):
                         whitewine, breast, letter, abalone, anuran
                         """)
 
-
-    parser.add_argument("--missing_type", default="MCAR", type=str,
+    parser.add_argument("--missing_type", default="MAR", type=str,
                         help="how to generate missing: MCAR, MAR, MNARL, MNARQ") 
     parser.add_argument("--missing_rate", default=0.3, type=float,
                         help="missing rate")
@@ -62,10 +62,10 @@ def get_args(debug):
                         help="the ratio of train test split") 
     parser.add_argument('--batch_size', default=128, type=int,
                         help='batch size')  
-    parser.add_argument('--epochs', default=10000, type=int,
+    parser.add_argument('--epochs', default=5000, type=int,
                         help='Number epochs to train GAIN.')
     parser.add_argument('--lr', default=0.001, type=float,
-                        help='learning rate to train VAEAC')
+                        help='learning rate to train GAIN')
     
     parser.add_argument('--hint_rate', default=0.9, type=float,
                          help='hint probability')
@@ -135,7 +135,7 @@ def main():
     )
     #%%
     """model save"""
-    base_name = f"{config['missing_type']}_{config['missing_rate']}_{config['hint_rate']}_{config['dataset']}"
+    base_name = f"{config['model']}_{config['missing_type']}_{config['missing_rate']}_{config['hint_rate']}_{config['dataset']}"
     model_dir = f"./assets/models/{base_name}"
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)

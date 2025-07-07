@@ -299,9 +299,9 @@ def get_imputation_networks(one_hot_max_sizes):
     """
 
     #TODO: model size 
-    width = 256
-    depth = 10
-    latent_dim = 64
+    width = 16
+    depth = 4
+    latent_dim = 2
     
     # Proposal network
     proposal_layers = [
@@ -363,7 +363,7 @@ def get_imputation_networks(one_hot_max_sizes):
 
     # Generative network
     generative_layers = [
-        nn.Linear(64, 256),
+        nn.Linear(latent_dim, width),
         nn.LeakyReLU(),
     ]
     for i in range(depth + 1):

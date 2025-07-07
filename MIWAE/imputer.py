@@ -20,13 +20,13 @@ except:
     subprocess.run(["wandb", "login"], input=key[0], encoding='utf-8')
     import wandb
 
-project = "MIWAE" # put your WANDB project name
+project = "dimvae_baselines" # put your WANDB project name
 # entity = "wotjd1410" # put your WANDB username
 
 run = wandb.init(
     project=project, 
     # entity=entity, 
-    tags=["Imputation"], # put tags of this python project
+    tags=["imputation"], # put tags of this python project
 )
 #%%
 def str2bool(v):
@@ -42,6 +42,7 @@ def str2bool(v):
 def get_args(debug):
     parser = argparse.ArgumentParser('parameters')
     
+    parser.add_argument("--model", type=str, default="MIWAE")
     parser.add_argument('--ver', type=int, default=0, 
                         help='model version number')
     
@@ -52,15 +53,13 @@ def get_args(debug):
                         whitewine, breast, letter, abalone, anuran
                         """)
     
-    parser.add_argument("--missing_type", default="MCAR", type=str,
+    parser.add_argument("--missing_type", default="MAR", type=str,
                         help="how to generate missing: MCAR, MAR, MNARL, MNARQ") 
     parser.add_argument("--missing_rate", default=0.3, type=float,
                         help="missing rate") 
     
     # multiple imputation
-    parser.add_argument('--multiple', default=False, type=str2bool,
-                        help="multiple imputation")
-    parser.add_argument("--M", default=100, type=int,
+    parser.add_argument("--M", default=50, type=int,
                         help="the number of multiple imputation")
     
     if debug:
@@ -136,16 +135,13 @@ def main():
     wandb.log({"Number of Parameters": num_params / 1000000})
     #%%
     """imputation"""
-    if config["multiple"]:
-        results = evaluation_multiple.evaluate(
-            train_dataset, model, M=config["M"]
-        )
-    else:
-        imputed = model.impute(
-            train_dataset, M=config['M'], seed=config["seed"]
-        )
-        results = evaluation.evaluate(imputed, train_dataset, test_dataset, config, device)
-
+    imputed = model.impute(train_dataset, M=config['M'], multiple=False, seed=config["seed"])
+    results = evaluation.evaluate(imputed, train_dataset, test_dataset, config, device)
+    for x, y in results._asdict().items():
+        print(f"{x}: {y:.3f}")
+        wandb.log({f"{x}": y})
+    #%%
+    results = evaluation_multiple.evaluate(train_dataset, model, M=config["M"])
     for x, y in results._asdict().items():
         print(f"{x}: {y:.3f}")
         wandb.log({f"{x}": y})

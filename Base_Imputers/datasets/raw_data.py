@@ -539,5 +539,143 @@ def load_raw_data(dataset):
         integer_features = []
          
         ClfTarget = None 
-              
+        
+    elif dataset == "shoppers":
+        ### https://archive.ics.uci.edu/dataset/468/online+shoppers+purchasing+intention+dataset
+        data = pd.read_csv('./data/online_shoppers_intention.csv')
+        
+        assert data.isna().sum().sum() == 0
+
+        continuous_features = [
+            'Administrative_Duration',   
+            'Informational_Duration',      
+            'ProductRelated_Duration',     
+            'BounceRates',             
+            'ExitRates',                   
+            'PageValues',                
+            'SpecialDay',                
+            'Administrative',    
+            'Informational',     
+            'ProductRelated',      
+        ]
+
+        categorical_features = [
+            'Month',               
+            'VisitorType',         
+            'Weekend',          
+            'OperatingSystems',    
+            'Browser',            
+            'Region',           
+            'TrafficType',        
+            "Revenue"
+        ]
+
+        integer_features = [
+            'Administrative',    
+            'Informational',      
+            'ProductRelated',     
+        ]
+
+        ClfTarget = "Revenue"
+
+    elif dataset == "default":
+        data = pd.read_csv('./data/default.csv')
+        
+        assert data.isna().sum().sum() == 0
+        
+        continuous_features = [
+            'LIMIT_BAL',  
+            'AGE', 
+            'BILL_AMT1', 
+            'BILL_AMT2',
+            'BILL_AMT3',
+            'BILL_AMT4', 
+            'BILL_AMT5', 
+            'BILL_AMT6', 
+            'PAY_AMT1',
+            'PAY_AMT2', 
+            'PAY_AMT3', 
+            'PAY_AMT4', 
+            'PAY_AMT5', 
+            'PAY_AMT6',
+        ]
+        categorical_features = [
+            'SEX', 
+            'EDUCATION', 
+            'MARRIAGE', 
+            'PAY_0',
+            'PAY_2', 
+            'PAY_3', 
+            'PAY_4',
+            'PAY_5', 
+            'PAY_6', 
+            'default_payment_next_month'
+        ]
+        integer_features = [
+            'LIMIT_BAL',  
+            'AGE', 
+        ]
+        ClfTarget = "default_payment_next_month"    
+
+    elif dataset == "BAF":
+        # https://www.kaggle.com/datasets/sgpjesus/bank-account-fraud-dataset-neurips-2022/data
+        data = pd.read_csv('./data/BAF.csv')
+        
+        ### remove missing values
+        data = data.loc[data["prev_address_months_count"] != -1]
+        data = data.loc[data["current_address_months_count"] != -1]
+        data = data.loc[data["intended_balcon_amount"] >= 0]
+        data = data.loc[data["bank_months_count"] != -1]
+        data = data.loc[data["session_length_in_minutes"] != -1]
+        data = data.loc[data["device_distinct_emails_8w"] != -1]
+        data = data.reset_index(drop=True)
+        
+        assert data.isna().sum().sum() == 0
+        
+        continuous_features = [
+            'income', 
+            'name_email_similarity',
+            'prev_address_months_count', 
+            'current_address_months_count',
+            'days_since_request', 
+            'intended_balcon_amount',
+            'zip_count_4w', 
+            'velocity_6h', 
+            'velocity_24h',
+            'velocity_4w', 
+            'bank_branch_count_8w',
+            'date_of_birth_distinct_emails_4w', 
+            'credit_risk_score', 
+            'bank_months_count',
+            'proposed_credit_limit', 
+            'session_length_in_minutes', 
+        ]
+        categorical_features = [
+            'customer_age', 
+            'payment_type', 
+            'employment_status',
+            'email_is_free', 
+            'housing_status',
+            'phone_home_valid', 
+            'phone_mobile_valid', 
+            'has_other_cards', 
+            'foreign_request', 
+            'source',
+            'device_os', 
+            'keep_alive_session',
+            'device_distinct_emails_8w', 
+            'month',
+            'fraud_bool', 
+        ]
+        integer_features = [
+            'prev_address_months_count', 
+            'current_address_months_count',
+            'zip_count_4w', 
+            'bank_branch_count_8w',
+            'date_of_birth_distinct_emails_4w', 
+            'credit_risk_score', 
+            'bank_months_count',
+        ]
+        ClfTarget = "fraud_bool"    
+                     
     return data, continuous_features, categorical_features, integer_features, ClfTarget

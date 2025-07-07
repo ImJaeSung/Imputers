@@ -1,6 +1,9 @@
 #%%
+#%%
 import pandas as pd
+import numpy as np
 from scipy.io import arff
+from scipy.io import loadmat
 #%%
 def load_raw_data(config):
     if config["dataset"] == "abalone":
@@ -694,6 +697,581 @@ def load_raw_data(config):
         
         ClfTarget = "Travel Time to Work"
 
+    #####   
+    elif config["dataset"] == "parkinson":
+        base = pd.read_csv("./data/pd_speech_features.csv").iloc[:, 1:] # id column
+        columns = list(base.iloc[0])
+        
+        data = base.iloc[1:].reset_index(drop=True) # column name, id delete
+        data.columns = columns
+        data = data.astype(float)
+
+        columns.remove('gender')
+        columns.remove('class')
+        
+        continuous_features = columns
+        categorical_features = [
+            'gender',
+            'class'
+        ]
+        integer_features = [
+            'numPulses',
+            'numPeriodsPulses',
+        ]
+        ClfTarget = 'class'
+        
+    elif config["dataset"] == "arrhythmia":
+        base = pd.read_csv("./data/arrhythmia.data",skiprows=1, header=None)
+        base = base[(base == '?').sum(axis=1) == 0]
+        data = base.dropna()
+        data = data.astype(float)
+        
+        # manually define
+        columns = [
+            "age", 
+            "sex", 
+            "height", 
+            "weight", 
+            "qrs_duration", 
+            "pr_interval",
+            "qt_interval",
+            "t_interval", 
+            "p_interval",
+            "qrs_angle",
+            "t_angle",
+            "p_angle", 
+            "qrst_angle",
+            "j_angle",
+            "heart_rate"
+        ]
+
+        # 16~159: channel DI ~ V6
+        channels = ["DI", "DII", "DIII", "AVR", "AVL", "AVF", "V1", "V2", "V3", "V4", "V5", "V6"]
+        features = [
+            "q_wave_width",
+            "r_wave_width", 
+            "s_wave_width", 
+            "r_prime_wave_width", 
+            "s_prime_wave_width",
+            "num_intrinsic_deflections",
+            "ragged_r_wave", 
+            "diphasic_r_wave", 
+            "ragged_p_wave", 
+            "diphasic_p_wave",
+            "ragged_t_wave", 
+            "diphasic_t_wave"
+        ]
+        for ch in channels:
+            for f in features:
+                columns.append(f"{ch.lower()}_{f}")
+
+        # 160~279: channel DI ~ V6
+        amplitude_features = [
+            "jj_wave_amp", 
+            "q_wave_amp", 
+            "r_wave_amp", 
+            "s_wave_amp", 
+            "r_prime_wave_amp", 
+            "s_prime_wave_amp",
+            "p_wave_amp", 
+            "t_wave_amp", 
+            "qrsa", 
+            "qrsta"
+        ]
+        for ch in channels:
+            for f in amplitude_features:
+                columns.append(f"{ch.lower()}_{f}")
+        
+        columns += ["Class"]
+        
+        assert data.shape[1] == len(columns)
+        
+        data.columns = columns
+        categorical_features = [
+            'sex',
+            'di_ragged_r_wave',
+            'di_diphasic_r_wave',
+            'di_ragged_p_wave',
+            'di_diphasic_p_wave',
+            'di_ragged_t_wave',
+            'di_diphasic_t_wave',
+            'Class'
+        ]
+        
+        continuous_features = [
+            f for f in columns if f not in categorical_features
+        ]
+        
+        integer_features [
+            'age',
+            'height',
+            'weight',
+            'qrs_duration',
+            'pr_interval',
+            'qt_interval',
+            't_interval',
+            'p_interval',
+            'qrs_angle',
+            't_angle',
+            'p_angle',
+            'qrst_angle',
+            'j_angle',
+            'heart_rate',
+            'di_q_wave_width',
+            'di_r_wave_width',
+            'di_s_wave_width',
+            'di_r_prime_wave_width',
+            'di_s_prime_wave_width',
+            'di_num_intrinsic_deflections',
+            'di_ragged_r_wave',
+            'di_diphasic_r_wave',
+            'di_ragged_p_wave',
+            'di_diphasic_p_wave',
+            'di_ragged_t_wave',
+            'di_diphasic_t_wave',
+            'dii_q_wave_width',
+            'dii_r_wave_width',
+            'dii_s_wave_width',
+            'dii_r_prime_wave_width',
+            'dii_s_prime_wave_width',
+            'dii_num_intrinsic_deflections',
+            'dii_ragged_r_wave',
+            'dii_diphasic_r_wave',
+            'dii_ragged_p_wave',
+            'dii_diphasic_p_wave',
+            'dii_ragged_t_wave',
+            'dii_diphasic_t_wave',
+            'diii_q_wave_width',
+            'diii_r_wave_width',
+            'diii_s_wave_width',
+            'diii_r_prime_wave_width',
+            'diii_s_prime_wave_width',
+            'diii_num_intrinsic_deflections',
+            'diii_ragged_r_wave',
+            'diii_diphasic_r_wave',
+            'diii_ragged_p_wave',
+            'diii_diphasic_p_wave',
+            'diii_ragged_t_wave',
+            'diii_diphasic_t_wave',
+            'avr_q_wave_width',
+            'avr_r_wave_width',
+            'avr_s_wave_width',
+            'avr_r_prime_wave_width',
+            'avr_s_prime_wave_width',
+            'avr_num_intrinsic_deflections',
+            'avr_ragged_r_wave',
+            'avr_diphasic_r_wave',
+            'avr_ragged_p_wave',
+            'avr_diphasic_p_wave',
+            'avr_ragged_t_wave',
+            'avr_diphasic_t_wave',
+            'avl_q_wave_width',
+            'avl_r_wave_width',
+            'avl_s_wave_width',
+            'avl_r_prime_wave_width',
+            'avl_s_prime_wave_width',
+            'avl_num_intrinsic_deflections',
+            'avl_ragged_r_wave',
+            'avl_diphasic_r_wave',
+            'avl_ragged_p_wave',
+            'avl_diphasic_p_wave',
+            'avl_ragged_t_wave',
+            'avl_diphasic_t_wave',
+            'avf_q_wave_width',
+            'avf_r_wave_width',
+            'avf_s_wave_width',
+            'avf_r_prime_wave_width',
+            'avf_s_prime_wave_width',
+            'avf_num_intrinsic_deflections',
+            'avf_ragged_r_wave',
+            'avf_diphasic_r_wave',
+            'avf_ragged_p_wave',
+            'avf_diphasic_p_wave',
+            'avf_ragged_t_wave',
+            'avf_diphasic_t_wave',
+            'v1_q_wave_width',
+            'v1_r_wave_width',
+            'v1_s_wave_width',
+            'v1_r_prime_wave_width',
+            'v1_s_prime_wave_width',
+            'v1_num_intrinsic_deflections',
+            'v1_ragged_r_wave',
+            'v1_diphasic_r_wave',
+            'v1_ragged_p_wave',
+            'v1_diphasic_p_wave',
+            'v1_ragged_t_wave',
+            'v1_diphasic_t_wave',
+            'v2_q_wave_width',
+            'v2_r_wave_width',
+            'v2_s_wave_width',
+            'v2_r_prime_wave_width',
+            'v2_s_prime_wave_width',
+            'v2_num_intrinsic_deflections',
+            'v2_ragged_r_wave',
+            'v2_diphasic_r_wave',
+            'v2_ragged_p_wave',
+            'v2_diphasic_p_wave',
+            'v2_ragged_t_wave',
+            'v2_diphasic_t_wave',
+            'v3_q_wave_width',
+            'v3_r_wave_width',
+            'v3_s_wave_width',
+            'v3_r_prime_wave_width',
+            'v3_s_prime_wave_width',
+            'v3_num_intrinsic_deflections',
+            'v3_ragged_r_wave',
+            'v3_diphasic_r_wave',
+            'v3_ragged_p_wave',
+            'v3_diphasic_p_wave',
+            'v3_ragged_t_wave',
+            'v3_diphasic_t_wave',
+            'v4_q_wave_width',
+            'v4_r_wave_width',
+            'v4_s_wave_width',
+            'v4_r_prime_wave_width',
+            'v4_s_prime_wave_width',
+            'v4_num_intrinsic_deflections',
+            'v4_ragged_r_wave',
+            'v4_diphasic_r_wave',
+            'v4_ragged_p_wave',
+            'v4_diphasic_p_wave',
+            'v4_ragged_t_wave',
+            'v4_diphasic_t_wave',
+            'v5_q_wave_width',
+            'v5_r_wave_width',
+            'v5_s_wave_width',
+            'v5_r_prime_wave_width',
+            'v5_s_prime_wave_width',
+            'v5_num_intrinsic_deflections',
+            'v5_ragged_r_wave',
+            'v5_diphasic_r_wave',
+            'v5_ragged_p_wave',
+            'v5_diphasic_p_wave',
+            'v5_ragged_t_wave',
+            'v5_diphasic_t_wave',
+            'v6_q_wave_width',
+            'v6_r_wave_width',
+            'v6_s_wave_width',
+            'v6_r_prime_wave_width',
+            'v6_s_prime_wave_width',
+            'v6_num_intrinsic_deflections',
+            'v6_ragged_r_wave',
+            'v6_diphasic_r_wave',
+            'v6_ragged_p_wave',
+            'v6_diphasic_p_wave',
+            'v6_ragged_t_wave',
+            'v6_diphasic_t_wave'
+        ]
+        
+        ClfTarget = 'Class'
+        
+        
+    # high-dimensional
+    elif config["dataset"] == "arcene":
+        
+        base1 = pd.read_csv('./data/arcene_train.data', header=None, delimiter=" ")
+        base2 = pd.read_csv('./data/arcene_valid.data', header=None, delimiter=" ")
+        
+        columns = [f"col{x}" for x in range(len(base1.columns) - 1)]
+        columns += ["class"]
+        
+        base1.columns = columns 
+        base2.columns = columns
+         
+        base1['class'] = pd.read_csv('./data/arcene_train.labels', header=None, delimiter=" ")
+        base2['class'] = pd.read_csv('./data/arcene_valid.labels', header=None, delimiter=" ")
+        
+        data = pd.concat([base1, base2], axis=0)
+        
+        columns.remove('class')
+        
+        continuous_features = columns
+        categorical_features = ["class"]
+        integer_features = continuous_features
+        ClfTarget = "class"
+    
+    elif config["dataset"] == "lung":
+        base = loadmat("./data/lung.mat")
+        base = np.concatenate([base['X'], base['Y']], axis=1)
+        
+        data = pd.DataFrame(base)
+        columns = [f"col{i}" for i in range(base.shape[1]-1)]
+        columns += ["class"]
+        data.columns = columns
+        
+        columns.remove("class")
+        continuous_features = columns
+        categorical_features = ["class"]
+        integer_features = []
+        
+        ClfTarget = "class"
+    
+    elif config["dataset"] == "toxicity":
+        base = loadmat("./data/TOX-171.mat")
+        base = np.concatenate([base['X'], base['Y']], axis=1)
+        
+        data = pd.DataFrame(base)
+        columns = [f"col{i}" for i in range(base.shape[1]-1)]
+        columns += ["class"]
+        data.columns = columns
+        
+        columns.remove("class")
+        continuous_features = columns
+        categorical_features = ["class"]
+        integer_features = []
+        
+        ClfTarget = "class"
+    
+    elif config["dataset"] == "prostate":
+        base = loadmat("./data/Prostate_GE.mat")
+        base = np.concatenate([base['X'], base['Y']], axis=1)
+
+        data = pd.DataFrame(base)
+        columns = [f"col{i}" for i in range(base.shape[1]-1)]
+        columns += ["class"]
+        data.columns = columns
+        
+        columns.remove("class")
+        continuous_features = columns
+        categorical_features = ["class"]
+        integer_features = []
+        
+        ClfTarget = "class"
+        
+    elif config["dataset"] == "cll":
+        base = loadmat("./data/CLL_SUB_111.mat")
+        base = np.concatenate([base['X'], base['Y']], axis=1)
+        
+        data = pd.DataFrame(base)
+        columns = [f"col{i}" for i in range(base.shape[1]-1)]
+        columns += ["class"]
+        data.columns = columns
+        
+        columns.remove("class")
+        continuous_features = columns
+        categorical_features = ["class"]
+        integer_features = []
+        
+        ClfTarget = "class"
+        
+    elif config["dataset"] == "orl":
+        base = loadmat("./data/ORL.mat")
+        base = np.concatenate([base['X'], base['Y']], axis=1)
+        
+        data = pd.DataFrame(base)
+        columns = [f"col{i}" for i in range(base.shape[1]-1)]
+        columns += ["class"]
+        data.columns = columns
+        
+        columns.remove("class")
+        continuous_features = columns
+        categorical_features = ["class"]
+        integer_features = []
+
+        ClfTarget = "class"
+    
+    elif config["dataset"] == "allaml":
+        base = loadmat("./data/ALLAML.mat")
+        base = np.concatenate([base['X'], base['Y']], axis=1)
+
+        data = pd.DataFrame(base)
+        columns = [f"col{i}" for i in range(base.shape[1]-1)]
+        columns += ["class"]
+        data.columns = columns
+        
+        columns.remove("class")
+        continuous_features = columns
+        categorical_features = ["class"]
+        integer_features = []
+
+        ClfTarget = "class"
+        
+    elif config["dataset"] == "glioma":
+        base = loadmat("./data/GLIOMA.mat")
+        base = np.concatenate([base['X'], base['Y']], axis=1)
+        
+        data = pd.DataFrame(base)
+        columns = [f"col{i}" for i in range(base.shape[1]-1)]
+        columns += ["class"]
+        data.columns = columns
+        
+        columns.remove("class")
+        continuous_features = columns
+        categorical_features = ["class"]
+        integer_features = []
+
+        ClfTarget = "class"
+
+    elif config["dataset"] == "yale":
+        base = loadmat("./data/Yale.mat")
+        base = np.concatenate([base['X'], base['Y']], axis=1)
+        
+        data = pd.DataFrame(base)
+        columns = [f"col{i}" for i in range(base.shape[1]-1)]
+        columns += ["class"]
+        data.columns = columns
+        
+        columns.remove("class")
+        continuous_features = columns
+        categorical_features = ["class"]
+        integer_features = []
+
+        ClfTarget = "class"
+        
+    elif config["dataset"] == "warppie":
+        base = loadmat("./data/warpPIE10P.mat")
+        base = np.concatenate([base['X'], base['Y']], axis=1)
+        
+        data = pd.DataFrame(base)
+        columns = [f"col{i}" for i in range(base.shape[1]-1)]
+        columns += ["class"]
+        data.columns = columns
+        
+        columns.remove("class")
+        continuous_features = columns
+        categorical_features = ["class"]
+        integer_features = []
+
+        ClfTarget = "class"        
+
+    elif config["dataset"] == "shoppers":
+        ### https://archive.ics.uci.edu/dataset/468/online+shoppers+purchasing+intention+dataset
+        data = pd.read_csv('./data/online_shoppers_intention.csv')
+        
+        assert data.isna().sum().sum() == 0
+
+        continuous_features = [
+            'Administrative_Duration',   
+            'Informational_Duration',      
+            'ProductRelated_Duration',     
+            'BounceRates',             
+            'ExitRates',                   
+            'PageValues',                
+            'SpecialDay',                
+            'Administrative',    
+            'Informational',     
+            'ProductRelated',      
+        ]
+
+        categorical_features = [
+            'Month',               
+            'VisitorType',         
+            'Weekend',          
+            'OperatingSystems',    
+            'Browser',            
+            'Region',           
+            'TrafficType',        
+            "Revenue"
+        ]
+
+        integer_features = [
+            'Administrative',    
+            'Informational',      
+            'ProductRelated',     
+        ]
+
+        ClfTarget = "Revenue"
+
+    elif config["dataset"] == "default":
+        data = pd.read_csv('./data/default.csv')
+        
+        assert data.isna().sum().sum() == 0
+        
+        continuous_features = [
+            'LIMIT_BAL',  
+            'AGE', 
+            'BILL_AMT1', 
+            'BILL_AMT2',
+            'BILL_AMT3',
+            'BILL_AMT4', 
+            'BILL_AMT5', 
+            'BILL_AMT6', 
+            'PAY_AMT1',
+            'PAY_AMT2', 
+            'PAY_AMT3', 
+            'PAY_AMT4', 
+            'PAY_AMT5', 
+            'PAY_AMT6',
+        ]
+        categorical_features = [
+            'SEX', 
+            'EDUCATION', 
+            'MARRIAGE', 
+            'PAY_0',
+            'PAY_2', 
+            'PAY_3', 
+            'PAY_4',
+            'PAY_5', 
+            'PAY_6', 
+            'default_payment_next_month'
+        ]
+        integer_features = [
+            'LIMIT_BAL',  
+            'AGE', 
+        ]
+        ClfTarget = "default_payment_next_month"    
+
+    elif config["dataset"] == "BAF":
+        # https://www.kaggle.com/datasets/sgpjesus/bank-account-fraud-dataset-neurips-2022/data
+        data = pd.read_csv('./data/BAF.csv')
+        
+        ### remove missing values
+        data = data.loc[data["prev_address_months_count"] != -1]
+        data = data.loc[data["current_address_months_count"] != -1]
+        data = data.loc[data["intended_balcon_amount"] >= 0]
+        data = data.loc[data["bank_months_count"] != -1]
+        data = data.loc[data["session_length_in_minutes"] != -1]
+        data = data.loc[data["device_distinct_emails_8w"] != -1]
+        data = data.reset_index(drop=True)
+        
+        assert data.isna().sum().sum() == 0
+        
+        continuous_features = [
+            'income', 
+            'name_email_similarity',
+            'prev_address_months_count', 
+            'current_address_months_count',
+            'days_since_request', 
+            'intended_balcon_amount',
+            'zip_count_4w', 
+            'velocity_6h', 
+            'velocity_24h',
+            'velocity_4w', 
+            'bank_branch_count_8w',
+            'date_of_birth_distinct_emails_4w', 
+            'credit_risk_score', 
+            'bank_months_count',
+            'proposed_credit_limit', 
+            'session_length_in_minutes', 
+        ]
+        categorical_features = [
+            'customer_age', 
+            'payment_type', 
+            'employment_status',
+            'email_is_free', 
+            'housing_status',
+            'phone_home_valid', 
+            'phone_mobile_valid', 
+            'has_other_cards', 
+            'foreign_request', 
+            'source',
+            'device_os', 
+            'keep_alive_session',
+            'device_distinct_emails_8w', 
+            'month',
+            'fraud_bool', 
+        ]
+        integer_features = [
+            'prev_address_months_count', 
+            'current_address_months_count',
+            'zip_count_4w', 
+            'bank_branch_count_8w',
+            'date_of_birth_distinct_emails_4w', 
+            'credit_risk_score', 
+            'bank_months_count',
+        ]
+        ClfTarget = "fraud_bool"  
+                
     return data, continuous_features, categorical_features, integer_features, ClfTarget
 
 # %%

@@ -26,7 +26,7 @@ except:
     subprocess.run(["wandb", "login"], input=key[0], encoding='utf-8')
     import wandb
 
-project = "VAEAC" # put your WANDB project name
+project = "dimvae_baselines2" # put your WANDB project name
 # entity = "wotjd1410" # put your WANDB username
 
 run = wandb.init(
@@ -47,7 +47,7 @@ def str2bool(v):
 #%%
 def get_args(debug):
     parser = argparse.ArgumentParser('parameters')
-    
+    parser.add_argument("--model", default='VAEAC', type=str) 
     parser.add_argument('--ver', type=int, default=3, 
                         help='model version number')
     
@@ -63,9 +63,7 @@ def get_args(debug):
     parser.add_argument("--missing_rate", default=0.3, type=float,
                         help="missing rate")
     
-    parser.add_argument('--multiple', default=False, type=str2bool,
-                        help="multiple imputation")
-    parser.add_argument("--M", default=100, type=int,
+    parser.add_argument("--M", default=50, type=int,
                         help="the number of multiple imputation")
     
 
@@ -79,7 +77,7 @@ def main():
     #%%
     config = vars(get_args(debug=False))
     """model load"""
-    base_name = f"{config['missing_type']}_{config['missing_rate']}_{config['dataset']}"
+    base_name = f"{config['model']}_{config['missing_type']}_{config['missing_rate']}_{config['dataset']}"
     model_name = f"VAEAC_{base_name}"
     artifact = wandb.use_artifact(
         f"{project}/{model_name}:v{config['ver']}",
@@ -144,45 +142,46 @@ def main():
     print(f"Number of Parameters: {num_params/1000000:.1f}M")
     wandb.log({"Number of Parameters": num_params / 1000000})
     #%%
-    """imputation"""
-    if config["multiple"]:
-        results = evaluation_multiple.evaluate(
+    """imputation"""  
+    # start_time = time.time()
+    
+    imputed = model.impute(train_dataset, M=config["M"])
+
+    # continuous: mean, discrete: mode
+    cont_imputed = torch.mean(
+        torch.stack(imputed)[:, :, :train_dataset.num_continuous_features],
+        dim=0
+    ) # [N, P(cont)]]
+    disc_imputed = torch.mode(
+        torch.stack(imputed)[:, :, train_dataset.num_continuous_features:],
+        dim=0
+    )[0] # [N, P(disc)]
+    imputed = torch.cat((cont_imputed, disc_imputed), dim=1) # [M, N, P]
+    imputed = pd.DataFrame(imputed, columns=train_dataset.features)
+    
+    ### for checking
+    # imputed_mean = imputed[train_dataset.continuous_features].mean()
+    # raw_mean = train_dataset.raw_data[train_dataset.continuous_features].mean()
+    # unbiased_ = ((imputed_mean - raw_mean) / raw_mean)
+    # # unbiased_ = np.abs((imputed_mean - raw_mean) / raw_mean)
+    # print(unbiased_.mean())
+    
+    # imputed_var = imputed[train_dataset.continuous_features].var()
+    # raw_var = train_dataset.raw_data[train_dataset.continuous_features].var()
+    # print((imputed_var / raw_var).mean())
+        
+    # end_time = time.time()
+    # elapsed_time = end_time - start_time
+    # print(f"VAEAC (imputation): {elapsed_time:.4f} seconds")
+    
+    results = evaluation.evaluate(imputed, train_dataset, test_dataset, config, device)
+    for x, y in results._asdict().items():
+        print(f"{x}: {y:.3f}")
+        wandb.log({f"{x}": y})
+        
+    results = evaluation_multiple.evaluate(
             train_dataset, model, M=config["M"]
         )
-    else:        
-        start_time = time.time()
-        
-        imputed = model.impute(train_dataset, M=config["M"])
-
-        # continuous: mean, discrete: mode
-        cont_imputed = torch.mean(
-            torch.stack(imputed)[:, :, :train_dataset.num_continuous_features],
-            dim=0
-        ) # [N, P(cont)]]
-        disc_imputed = torch.mode(
-            torch.stack(imputed)[:, :, train_dataset.num_continuous_features:],
-            dim=0
-        )[0] # [N, P(disc)]
-        imputed = torch.cat((cont_imputed, disc_imputed), dim=1) # [M, N, P]
-        imputed = pd.DataFrame(imputed, columns=train_dataset.features)
-        
-        ### for checking
-        imputed_mean = imputed[train_dataset.continuous_features].mean()
-        raw_mean = train_dataset.raw_data[train_dataset.continuous_features].mean()
-        unbiased_ = ((imputed_mean - raw_mean) / raw_mean)
-        # unbiased_ = np.abs((imputed_mean - raw_mean) / raw_mean)
-        print(unbiased_.mean())
-        
-        imputed_var = imputed[train_dataset.continuous_features].var()
-        raw_var = train_dataset.raw_data[train_dataset.continuous_features].var()
-        print((imputed_var / raw_var).mean())
-            
-        end_time = time.time()
-        elapsed_time = end_time - start_time
-        print(f"VAEAC (imputation): {elapsed_time:.4f} seconds")
-        
-        results = evaluation.evaluate(imputed, train_dataset, test_dataset, config, device)
-
     for x, y in results._asdict().items():
         print(f"{x}: {y:.3f}")
         wandb.log({f"{x}": y})

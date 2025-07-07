@@ -23,13 +23,13 @@ except:
     subprocess.run(["wandb", "login"], input=key[0], encoding='utf-8')
     import wandb
 
-project = "MIWAE"  # put your WANDB project name
+project = "dimvae_baselines"  # put your WANDB project name
 # entity = "wotjd1410" # put your WANDB username
 
 run = wandb.init(
     project=project,
     # entity=entity, |
-    tags=["Train"], # put tags of this python project
+    tags=["train"], # put tags of this python project
 )
 #%%
 def arg_as_list(s):
@@ -40,6 +40,7 @@ def arg_as_list(s):
 #%%
 def get_args(debug):
     parser = argparse.ArgumentParser('parameters')
+    parser.add_argument("--model", type=str, default="MIWAE")
     parser.add_argument("--seed", type=int, default=0, 
                         help="seed for repeatable results")
     parser.add_argument('--dataset', type=str, default='loan', 
@@ -51,12 +52,12 @@ def get_args(debug):
     parser.add_argument("--test_size", default=0.2, type=float,
                         help="the ratio of train test split") 
     
-    parser.add_argument("--missing_type", default="MCAR", type=str,
+    parser.add_argument("--missing_type", default="MAR", type=str,
                         help="how to generate missing: MCAR, MAR, MNARL, MNARQ") 
     parser.add_argument("--missing_rate", default=0.3, type=float,
                         help="missing rate") 
 
-    parser.add_argument('--hidden_dim', type=int, nargs='+', default=128,
+    parser.add_argument('--hidden_dim', type=int, nargs='+', default=64,
                         help='List of hidden dimensions sizes.')
     
     parser.add_argument('--batch_size', type=int, default=64,
@@ -66,7 +67,7 @@ def get_args(debug):
     parser.add_argument('--lr', type=float, default=0.001,
                         help='Learning rate.')
     
-    parser.add_argument('--k', type=int, default=20,
+    parser.add_argument('--k', type=int, default=10,
                         help='# number of IS during training.')
     
     if debug:
@@ -150,11 +151,11 @@ def main():
         wandb.log({x: np.mean(y) for x, y in logs.items()})
     # %%
     """model save"""
-    base_name = f"{config['missing_type']}_{config['missing_rate']}_{config['dataset']}"
+    base_name = f"MIWAE_{config['missing_type']}_{config['missing_rate']}_{config['dataset']}"
     model_dir = f"./assets/models/{base_name}"
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
-    model_name = f"MIWAE_{base_name}_{config['seed']}"
+    model_name = f"{base_name}_{config['seed']}"
     
     torch.save(model.state_dict(), f"./{model_dir}/{model_name}.pth")
 

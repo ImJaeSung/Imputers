@@ -22,7 +22,7 @@ except:
     subprocess.run(["wandb", "login"], input=key[0], encoding='utf-8')
     import wandb
 
-project = "GAIN" # put your WANDB project name
+project = "dimvae_baselines2" # put your WANDB project name
 # entity = "wotjd1410" # put your WANDB username
 
 run = wandb.init(
@@ -47,6 +47,7 @@ def get_args(debug=False):
     
     parser.add_argument('--ver', type=int, default=0, 
                         help='model version number')
+    parser.add_argument("--model", default="gain", type=str)
     
     parser.add_argument('--dataset', type=str, default='loan', 
                         help="""
@@ -55,16 +56,14 @@ def get_args(debug=False):
                         whitewine, breast, letter, abalone, anuran
                         """)
     
-    parser.add_argument("--missing_type", default="MCAR", type=str,
+    parser.add_argument("--missing_type", default="MAR", type=str,
                         help="how to generate missing: MCAR, MAR, MNARL, MNARQ") 
     parser.add_argument("--missing_rate", default=0.3, type=float,
                         help="missing rate") 
     parser.add_argument('--hint_rate', default=0.9, type=float,
                          help='hint probability')
 
-    parser.add_argument('--multiple', default=False, type=str2bool,
-                        help="multiple imputation")
-    parser.add_argument("--M", default=100, type=int,
+    parser.add_argument("--M", default=50, type=int,
                         help="the number of multiple imputation")
 
     if debug:
@@ -78,7 +77,7 @@ def main():
     config = vars(get_args(debug=False))
     #%%
     """model load"""
-    base_name = f"{config['missing_type']}_{config['missing_rate']}_{config['hint_rate']}_{config['dataset']}"
+    base_name = f"{config['model']}_{config['missing_type']}_{config['missing_rate']}_{config['hint_rate']}_{config['dataset']}"
     model_name = f"GAIN_{base_name}"
     artifact = wandb.use_artifact(
         f"{project}/{model_name}:v{config['ver']}",
@@ -143,15 +142,15 @@ def main():
     wandb.log({"Number of Parameters": G_params / 1000})
     #%%
     """imputation"""
-    if config["multiple"]:
-        results = evaluation_multiple.evaluate(
-            train_dataset, train_dataloader, G, M=config["M"]
-        )
-    else:
-        imputed = G.impute(train_dataset, config, device)
-        results = evaluation.evaluate(imputed, train_dataset, test_dataset, config, device)
-    
+    imputed = G.impute(train_dataset, config, device)
+    results = evaluation.evaluate(imputed, train_dataset, test_dataset, config, device)
+    for x, y in results._asdict().items():
+        print(f"{x}: {y:.3f}")
+        wandb.log({f"{x}": y})
     #%%
+    results = evaluation_multiple.evaluate(
+        train_dataset, G, config, device, M=config["M"]
+    )
     for x, y in results._asdict().items():
         print(f"{x}: {y:.3f}")
         wandb.log({f"{x}": y})

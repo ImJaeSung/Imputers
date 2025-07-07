@@ -24,7 +24,7 @@ except:
     subprocess.run(["wandb", "login"], input=key[0], encoding='utf-8')
     import wandb
 
-project = "kdd_rebuttal"
+project = "dimvae_baselines"
 # entity = ""
 
 run = wandb.init(
@@ -54,11 +54,11 @@ def get_args(debug):
     
     parser.add_argument("--test_size", default=0.2, type=float,
                         help="the ratio of train test split")     
-    parser.add_argument('--epochs', default=1000, type=int,
+    parser.add_argument('--epochs', default=10000, type=int,
                         help='the number of epochs')
     parser.add_argument('--batch_size', default=1024, type=int,
                         help='batch size')
-    parser.add_argument('--lr', default=0.001, type=float,
+    parser.add_argument('--lr', default=0.0005, type=float,
                         help='learning rate')
     parser.add_argument('--weight_decay', default=0., type=float,
                         help='parameter of AdamW')

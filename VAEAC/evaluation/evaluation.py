@@ -2,86 +2,101 @@
 import pandas as pd
 import numpy as np
 from collections import namedtuple
-from evaluation import metrics_impute, metrics_stat, metrics_MLu
-from modules import utils
+from evaluation import metric_fidelity, metric_utility, metric_congeniality
 
 import warnings
 warnings.filterwarnings("ignore", "use_inf_as_na")
 
 Metrics = namedtuple(
     "Metrics",
-    [   
-        "smape",
-        "error",
-        "arsmape",
-        "rmse",
-        "armse",
-        "mae",
-        "armae",
+    [
+        "SMAPE",
+        "RMSE",
+        "MAE",
+        "PFC",
+        "ASMAPE",
+        "ARMSE",
+        "AMAE",
         "KL",
-        # "base_reg", 
-        # "syn_reg", 
+        "GoF",
+        "MMD",
+        "WD",
+        "CW",
+        "alpha_precision", 
+        "beta_recall",
+        "base_reg", 
+        "syn_reg", 
         "base_cls", 
         "syn_cls",
+        "syn_cls1",
         "model_selection", 
-        "feature_selection"
+        "feature_selection",
+        "congeniality_bias", 
+        "congeniality_mse"
     ]
 )
 #%%
-def evaluate(imputed, train_dataset, test_dataset, config, device):
+def evaluate(syndata, train_dataset, test_dataset, config, device):
     
-    print("\n1. Element-wise: ARSMAPE...")
-    smape, error = metrics_impute.SMAPE(train_dataset, imputed)
-    arsmape = smape + error
+    print("\n1. Imputation Fidelity\n")
     
-    print("\n2. Element-wise: ARMSE...")
-    rmse, error = metrics_impute.NRMSE(train_dataset, imputed)
-    armse = rmse + error
+    print("\n(continuous) SMAPE...")
+    SMAPE = metric_fidelity.SMAPE(train_dataset, syndata)
     
-    print("\n3. Element-wise: ARMAE...")
-    mae, error = metrics_impute.NMAE(train_dataset, imputed)
-    armae = mae + error
-
-    print("\n4. Statistical Fidelity: KL-Divergence...")
-    KL = metrics_stat.KLDivergence(train_dataset, imputed)
+    print("\n(continuous) RMSE...")
+    RMSE = metric_fidelity.RMSE(train_dataset, syndata)
     
-    # print("\n5. Statistical Fidelity: Goodness Of Fit...")
-    # GoF = metrics_stat.GoodnessOfFit(train_dataset, imputed)
+    print("\n(continuous) MAE...")
+    MAE = metric_fidelity.MAE(train_dataset, syndata)
     
-    # print("\n6. Statistical Fidelity: MMD...")
-    # MMD = metrics_stat.MaximumMeanDiscrepancy(train_dataset, imputed)
+    print("\n(categorical) Proportion of Falsely Classified (PFC)...")
+    PFC = metric_fidelity.PFC(train_dataset, syndata)
     
-    # print("\n7. Statistical Fidelity: Wasserstein...")
-    # WD = metrics_stat.WassersteinDistance(train_dataset, imputed, device)
+    print("\n(distributional) KL-Divergence...")
+    KL = metric_fidelity.KLDivergence(train_dataset, syndata)
     
-    # print("\n8. Statistical Fidelity: Cramer-Wold Distance...")
-    # CW = metrics_stat.CramerWoldDistance(train_dataset, imputed, config, device)
-
-    # print("\n9. Machine Learning Utility: Regression...")
-    # base_reg, syn_reg = metrics_MLu.MLu_reg(train_dataset, test_dataset, imputed)
+    print("\n(distributional) Goodness Of Fit...")
+    GoF = metric_fidelity.GoodnessOfFit(train_dataset, syndata)
     
-    print("\n10. Machine Learning Utility: Classification...")
-    if config["dataset"] == "dti":
-        base_cls, syn_cls, model_selection, feature_selection = 0, 0, 0, 0
+    print("\n(distributional) Maximum Mean Discrepancy...")
+    if config["dataset"] == "covtype":
+        MMD = metric_fidelity.MaximumMeanDiscrepancy(
+            train_dataset, syndata, large=True)
     else:
-        base_cls, syn_cls, model_selection, feature_selection = metrics_MLu.MLu_cls(train_dataset, test_dataset, imputed)
+        MMD = metric_fidelity.MaximumMeanDiscrepancy(train_dataset, syndata)
     
-    # print("\n11. Privacy: K-anonimity...")
-    # Kanon_base, Kanon_syn = metrics_privacy.kAnonymization(train_dataset, imputed)
+    print("\n(distributional) Wasserstein Distance...")
+    if config["dataset"] == "covtype":
+        WD = metric_fidelity.WassersteinDistance(
+            train_dataset, syndata, large=True)
+    else:
+        WD = metric_fidelity.WassersteinDistance(train_dataset, syndata)
     
-    # print("\n12. Privacy: K-Map...")
-    # KMap = metrics_privacy.kMap(train_dataset, imputed)
+    print("\n(distributional) Cramer-Wold Distance...")
+    CW = metric_fidelity.CramerWoldDistance(
+        train_dataset, syndata, device)
     
-    # print("\n13. Privacy: DCR...")
-    # DCR_RS, DCR_RR, DCR_SS = metrics_privacy.DCR_metric(train_dataset, imputed)
+    print("\n(distributional) alpha-precision, beta-recall...")
+    alpha_precision, beta_recall = metric_fidelity.naive_alpha_precision_beta_recall(
+        train_dataset, syndata)
     
-    # print("\n14. Privacy: Attribute Disclosure...")
-    # AD = metrics_privacy.AttributeDisclosure(train_dataset, imputed)
-    
-    # print("\n14. Marginal Distribution...")
-    # figs = utils.marginal_plot(train_dataset.raw_data, imputed, config)
+    print("\n2. Machine Learning utility\n")
 
+    print("\nRegression downstream task...")
+    base_reg, syn_reg = metric_utility.regression(train_dataset, test_dataset, syndata)
+    
+    print("\nClassification downstream task...")
+    base_cls, syn_cls, syn_cls1, model_selection, feature_selection = metric_utility.classification(
+        train_dataset, test_dataset, syndata)
+    
+    print("\n3. Cogeniality\n")
+    congeniality_bias, congeniality_mse = metric_congeniality.congeniality(
+        train_dataset, test_dataset, syndata)
+    
     return Metrics(
-        smape, error, arsmape, rmse, armse, mae, armae, 
-        KL, base_cls, syn_cls, model_selection, feature_selection
+        SMAPE, RMSE, MAE, PFC, SMAPE+PFC, RMSE+PFC, MAE+PFC,
+        KL, GoF, MMD, WD, CW, alpha_precision, beta_recall,
+        base_reg,  syn_reg, base_cls,  syn_cls, syn_cls1, model_selection, feature_selection,
+        congeniality_bias, congeniality_mse
     )
+#%%

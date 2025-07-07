@@ -2,7 +2,7 @@
 import pandas as pd
 import numpy as np
 from collections import namedtuple
-from evaluation import metric_fidelity, metric_utility
+from evaluation import metric_fidelity, metric_utility, metric_congeniality
 
 import warnings
 warnings.filterwarnings("ignore", "use_inf_as_na")
@@ -31,6 +31,8 @@ Metrics = namedtuple(
         "syn_cls1",
         "model_selection", 
         "feature_selection",
+        "congeniality_bias", 
+        "congeniality_mse"
     ]
 )
 #%%
@@ -86,11 +88,15 @@ def evaluate(syndata, train_dataset, test_dataset, config, device):
     print("\nClassification downstream task...")
     base_cls, syn_cls, syn_cls1, model_selection, feature_selection = metric_utility.classification(
         train_dataset, test_dataset, syndata)
-    
+  
+    print("\n3. Cogeniality\n")
+    congeniality_bias, congeniality_mse = metric_congeniality.congeniality(
+        train_dataset, test_dataset, syndata)  
     
     return Metrics(
         SMAPE, RMSE, MAE, PFC, SMAPE+PFC, RMSE+PFC, MAE+PFC,
         KL, GoF, MMD, WD, CW, alpha_precision, beta_recall,
         base_reg,  syn_reg, base_cls,  syn_cls, syn_cls1, model_selection, feature_selection,
+        congeniality_bias, congeniality_mse
     )
 #%%

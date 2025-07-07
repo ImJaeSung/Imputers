@@ -24,13 +24,13 @@ except:
     subprocess.run(["wandb", "login"], input=key[0], encoding='utf-8')
     import wandb
 
-project = "kdd_rebuttal"
+project = "dimvae_baselines"
 # entity = ""
 
 run = wandb.init(
     project=project, # put your WANDB project name
     # entity=entity, # put your WANDB username
-    tags=["inference"], # put tags of this python project
+    tags=["imputation"], # put tags of this python project
 )
 #%%
 def get_args(debug):
@@ -55,14 +55,16 @@ def get_args(debug):
     
     parser.add_argument("--test_size", default=0.2, type=float,
                         help="the ratio of train test split")     
-    parser.add_argument('--epochs', default=1000, type=int,
+    parser.add_argument('--epochs', default=10000, type=int,
                         help='the number of epochs')
     parser.add_argument('--batch_size', default=1024, type=int,
                         help='batch size')
-    parser.add_argument('--lr', default=0.001, type=float,
+    parser.add_argument('--lr', default=0.0005, type=float,
                         help='learning rate')
     parser.add_argument('--weight_decay', default=0., type=float,
                         help='parameter of AdamW')
+    parser.add_argument("--M", default=50, type=int,
+                        help="the number of multiple imputation")
     
     if debug:
         return parser.parse_args(args=[])
@@ -75,7 +77,7 @@ def main():
     config = vars(get_args(debug=False)) # default configuration
     
     """model load"""
-    model_name = "_".join([str(y) for x, y in config.items() if x != "ver" and x != "tau"]) 
+    model_name = "_".join([str(y) for x, y in config.items() if x != "ver" and x != "M"]) 
     if config["missing_type"] != "None":
         model_name = f"{config['missing_type']}_{config['missing_rate']}_" + model_name
     artifact = wandb.use_artifact(
@@ -152,7 +154,6 @@ def main():
     for x, y in results._asdict().items():
         print(f"{x}: {y:.4f}")
         wandb.log({f"{x}": y})
-    #%%
     #%%
     wandb.config.update(config, allow_val_change=True)
     wandb.run.finish()

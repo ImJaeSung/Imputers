@@ -23,26 +23,26 @@ def train_function(
         config,
         optimizer,
         train_dataloader,
-        valid_dataloader,
+        # valid_dataloader,
         device,
         verbose=True):
     mask_generator = networks['mask_generator']
     vlb_scale_factor = networks.get('vlb_scale_factor', 1)
 
     # number of batches after which it is time to do validation
-    valid_batch = ceil(
-        len(train_dataloader) / config["validations_per_epoch"]
-    )
+    # valid_batch = ceil(
+    #     len(train_dataloader) / config["validations_per_epoch"]
+    # )
 
     # a list of validation IWAE estimates
-    validation_iwae = []
+    # validation_iwae = []
     # a list of running variational lower bounds on the train set
     train_vlb = []
     # the length of two lists above is the same because the new
     # values are inserted into them at the validation checkpoints only
 
     # best model state according to the validation IWAE
-    best_state = None
+    # best_state = None
     
     # main train loop
     for epoch in range(config["epochs"]):
@@ -54,36 +54,36 @@ def train_function(
 
             # the time to do a checkpoint is at start and end of the training
             # and after processing validation_batches batches
-            if any([
-                        i == 0 and epoch == 0,
-                        i % valid_batch == valid_batch - 1,
-                        i + 1 == len(train_dataloader)
-                    ]):
-                val_iwae = get_validation_iwae(
-                    valid_dataloader, 
-                    mask_generator,
-                    config["batch_size"], 
-                    model,
-                    config["validation_iwae_num_samples"],
-                    verbose
-                )
-                validation_iwae.append(val_iwae)
+            # if any([
+            #             i == 0 and epoch == 0,
+            #             i % valid_batch == valid_batch - 1,
+            #             i + 1 == len(train_dataloader)
+            #         ]):
+            #     val_iwae = get_validation_iwae(
+            #         valid_dataloader, 
+            #         mask_generator,
+            #         config["batch_size"], 
+            #         model,
+            #         config["validation_iwae_num_samples"],
+            #         verbose
+            #     )
+            #     validation_iwae.append(val_iwae)
 
-                # if current model validation IWAE is the best validation IWAE
-                # over the history of training, the current state
-                # is saved to best_state variable
-                if max(validation_iwae[::-1]) <= val_iwae:
-                    best_state = deepcopy({
-                        'epoch': epoch,
-                        'model_state_dict': model.state_dict(),
-                        'optimizer_state_dict': optimizer.state_dict(),
-                        'validation_iwae': validation_iwae,
-                        'train_vlb': train_vlb,
-                    })
+            #     # if current model validation IWAE is the best validation IWAE
+            #     # over the history of training, the current state
+            #     # is saved to best_state variable
+            #     if max(validation_iwae[::-1]) <= val_iwae:
+            #         best_state = deepcopy({
+            #             'epoch': epoch,
+            #             'model_state_dict': model.state_dict(),
+            #             'optimizer_state_dict': optimizer.state_dict(),
+            #             'validation_iwae': validation_iwae,
+            #             'train_vlb': train_vlb,
+            #         })
 
-                if verbose:
-                    print(file=stderr)
-                    print(file=stderr)
+            #     if verbose:
+            #         print(file=stderr)
+            #         print(file=stderr)
 
             loss_ = []
 
@@ -118,4 +118,4 @@ def train_function(
         """update log"""
         wandb.log({x : np.mean(y) for x, y in logs.items()})
 
-    return best_state
+    return 
