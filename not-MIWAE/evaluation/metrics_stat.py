@@ -140,12 +140,12 @@ def WassersteinDistance(train_dataset, imputed, large=False):
     # assert len(train_) == len(imputed_)
 
     scaler = StandardScaler().fit(train_)
-    train_ = scaler.transform(train_)
-    imputed_ = scaler.transform(imputed_)
+    train_ = scaler.transform(train_).astype(np.float32)
+    imputed_ = scaler.transform(imputed_).astype(np.float32)
     
-    train_ = torch.from_numpy(train_).float()  # Ensure tensor is float
-    imputed_ = torch.from_numpy(imputed_).float()  # Ensure tensor is float
-    
+    train_ = torch.tensor(train_, dtype=torch.float32)
+    imputed_ = torch.tensor(imputed_, dtype=torch.float32)
+
     OT_solver = SamplesLoss(loss="sinkhorn")
     """
     Compute WD for 4000 samples and average due to the following error:

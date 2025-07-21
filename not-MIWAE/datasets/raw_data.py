@@ -1,7 +1,5 @@
 #%%
 import pandas as pd
-from scipy.io import arff
-
 #%%
 def load_raw_data(dataset):
     if dataset == "abalone":
@@ -244,46 +242,143 @@ def load_raw_data(dataset):
         ]
         integer_features = []
         ClfTarget = "quality"
-        
-    elif dataset == "nomao":
-        data, _ = arff.loadarff('./data/nomao.arff') # output : data, meta
-        data = pd.DataFrame(data)
+
+    elif dataset == "shoppers":
+        ### https://archive.ics.uci.edu/dataset/468/online+shoppers+purchasing+intention+dataset
+        data = pd.read_csv('./data/online_shoppers_intention.csv')
         
         assert data.isna().sum().sum() == 0
 
-        for column in data.select_dtypes([object]).columns:
-            data[column] = data[column].str.decode('utf-8') # object decoding
-        
-        categorical = [
-            7, 8, 15, 16, 23, 24, 31, 32, 39, 40, 
-            47, 48, 55, 56, 63, 64, 71, 72, 79, 80, 
-            87,  88, 92, 96, 100, 104, 108, 112, 116 
+        continuous_features = [
+            'Administrative_Duration',   
+            'Informational_Duration',      
+            'ProductRelated_Duration',     
+            'BounceRates',             
+            'ExitRates',                   
+            'PageValues',                
+            'SpecialDay',                
+            'Administrative',    
+            'Informational',     
+            'ProductRelated',      
         ]
-        continuous = [i for i in range(1, 119)]
-        continuous = [x for x in continuous if x not in categorical]
 
-        continuous_features = [f"V{x}" for x in continuous]
-        categorical_features = [f"V{x}" for x in categorical] + ['Class']
-        integer_features = []
-         
-        ClfTarget = 'Class'
-        
-    elif dataset == "yeast":
-        data, _ = arff.loadarff('./data/yeast.arff') # output : data, meta
-        data = pd.DataFrame(data)
+        categorical_features = [
+            'Month',               
+            'VisitorType',         
+            'Weekend',          
+            'OperatingSystems',    
+            'Browser',            
+            'Region',           
+            'TrafficType',        
+            "Revenue"
+        ]
+
+        integer_features = [
+            'Administrative',    
+            'Informational',      
+            'ProductRelated',     
+        ]
+
+        ClfTarget = "Revenue"
+
+    elif dataset == "default":
+        data = pd.read_csv('./data/default.csv')
         
         assert data.isna().sum().sum() == 0
+        
+        continuous_features = [
+            'LIMIT_BAL',  
+            'AGE', 
+            'BILL_AMT1', 
+            'BILL_AMT2',
+            'BILL_AMT3',
+            'BILL_AMT4', 
+            'BILL_AMT5', 
+            'BILL_AMT6', 
+            'PAY_AMT1',
+            'PAY_AMT2', 
+            'PAY_AMT3', 
+            'PAY_AMT4', 
+            'PAY_AMT5', 
+            'PAY_AMT6',
+        ]
+        categorical_features = [
+            'SEX', 
+            'EDUCATION', 
+            'MARRIAGE', 
+            'PAY_0',
+            'PAY_2', 
+            'PAY_3', 
+            'PAY_4',
+            'PAY_5', 
+            'PAY_6', 
+            'default_payment_next_month'
+        ]
+        integer_features = [
+            'LIMIT_BAL',  
+            'AGE', 
+        ]
+        ClfTarget = "default_payment_next_month"    
 
-        for column in data.select_dtypes([object]).columns:
-            data[column] = data[column].str.decode('utf-8') # object decoding
+    elif dataset == "BAF":
+        # https://www.kaggle.com/datasets/sgpjesus/bank-account-fraud-dataset-neurips-2022/data
+        data = pd.read_csv('./data/BAF.csv')
         
-        continuous = [i for i in range(1, 104)]
-        continuous_features = [f"attr{x}" for x in continuous]
+        ### remove missing values
+        data = data.loc[data["prev_address_months_count"] != -1]
+        data = data.loc[data["current_address_months_count"] != -1]
+        data = data.loc[data["intended_balcon_amount"] >= 0]
+        data = data.loc[data["bank_months_count"] != -1]
+        data = data.loc[data["session_length_in_minutes"] != -1]
+        data = data.loc[data["device_distinct_emails_8w"] != -1]
+        data = data.reset_index(drop=True)
         
-        categorical = [i for i in range(1, 15)]
-        categorical_features = [f"class{x}" for x in categorical]
-        integer_features = []
-         
-        ClfTarget = 'class14'
+        assert data.isna().sum().sum() == 0
         
+        continuous_features = [
+            'income', 
+            'name_email_similarity',
+            'prev_address_months_count', 
+            'current_address_months_count',
+            'days_since_request', 
+            'intended_balcon_amount',
+            'zip_count_4w', 
+            'velocity_6h', 
+            'velocity_24h',
+            'velocity_4w', 
+            'bank_branch_count_8w',
+            'date_of_birth_distinct_emails_4w', 
+            'credit_risk_score', 
+            'bank_months_count',
+            'proposed_credit_limit', 
+            'session_length_in_minutes', 
+        ]
+        categorical_features = [
+            'customer_age', 
+            'payment_type', 
+            'employment_status',
+            'email_is_free', 
+            'housing_status',
+            'phone_home_valid', 
+            'phone_mobile_valid', 
+            'has_other_cards', 
+            'foreign_request', 
+            'source',
+            'device_os', 
+            'keep_alive_session',
+            'device_distinct_emails_8w', 
+            'month',
+            'fraud_bool', 
+        ]
+        integer_features = [
+            'prev_address_months_count', 
+            'current_address_months_count',
+            'zip_count_4w', 
+            'bank_branch_count_8w',
+            'date_of_birth_distinct_emails_4w', 
+            'credit_risk_score', 
+            'bank_months_count',
+        ]
+        ClfTarget = "fraud_bool"    
+                      
     return data, continuous_features, categorical_features, integer_features, ClfTarget

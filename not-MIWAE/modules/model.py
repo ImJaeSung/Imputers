@@ -189,21 +189,26 @@ class notMIWAE(nn.Module):
             )
         )
         
-        disc_mask = mask[:, p:]
-        disc_mask = torch.Tensor.repeat(disc_mask, [k, 1])
+        disc_mask = mask[:, p:].bool()
+        disc_mask = disc_mask.repeat(k, 1)
         disc_loss = torch.tensor(0.).to(self.device)
-        
+
         st = 0
         end = 0
         for i, n in enumerate(self.num_categories):
             end += n
-            target = x[: ,p+i].to(torch.long)
-            target = torch.Tensor.repeat(target,[k, 1]).reshape(-1)
+            target = x[:, p+i].to(torch.long)
+            target = target.repeat(k, 1).reshape(-1)
             
-            if sum(disc_mask[:,i]) == 0: continue 
-            disc_loss += F.cross_entropy(
-                logit[:,st:end][~disc_mask[:, i]], target[~disc_mask[:, i]] ## complete?
-            )
+            target_mask = ~disc_mask[:, i]
+            if target_mask.sum() == 0:
+                continue
+            
+            logits_i = logit[:, st:end]
+            if torch.isnan(logits_i).any():
+                print(f"NaN detected in logits for category {i}")
+            
+            disc_loss += F.cross_entropy(logits_i[target_mask], target[target_mask])
             st = end
         
         return neg_bound, disc_loss

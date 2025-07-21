@@ -1,5 +1,5 @@
 #%%
-import numpy as np
+import numpy as np 
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
@@ -42,7 +42,7 @@ def congeniality(train_dataset, test_dataset, imputed):
         train_ = train_.values
         test_ = test_.values
         imputed_ = imputed_.values
-
+    
     # train logisitic regression
     model_complete = LogisticRegression(
         tol=1e-4, 
@@ -54,7 +54,7 @@ def congeniality(train_dataset, test_dataset, imputed):
         random_state=42, 
         max_iter=1000
     ).fit(imputed_[:, :-1], imputed_[:, -1])
-
+    
     if model_complete.coef_.shape == model_imputed.coef_.shape:
         w = model_complete.coef_.flatten()
         w_tilde = model_imputed.coef_.flatten()

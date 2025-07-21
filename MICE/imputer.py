@@ -24,7 +24,7 @@ except:
     subprocess.run(["wandb", "login"], input=key[0], encoding='utf-8')
     import wandb
 
-project = "MICE" # put your WANDB project name
+project = "dimvae_baselines" # put your WANDB project name
 # entity = "wotjd1410" # put your WANDB username
 
 run = wandb.init(
@@ -47,6 +47,7 @@ def get_args(debug):
     parser = argparse.ArgumentParser('parameters')
     parser.add_argument("--seed", type=int, default=0, 
                         help="seed for repeatable results")
+    parser.add_argument("--model", type=str, default="MICE")
     parser.add_argument('--dataset', type=str, default='loan', 
                         help="""
                         Dataset options: 
@@ -62,9 +63,7 @@ def get_args(debug):
     parser.add_argument("--missing_rate", default=0.3, type=float,
                         help="missing rate") 
     
-    parser.add_argument('--multiple', default=False, type=str2bool,
-                        help="multiple imputation")
-    parser.add_argument("--M", default=100, type=int,
+    parser.add_argument("--M", default=50, type=int,
                         help="the number of multiple imputation")
     
     parser.add_argument('--max_iter', type=int, default=10,
@@ -106,32 +105,34 @@ def main():
     )
     #%%
     """imputation"""
-    if config["multiple"]:
-        results = evaluation_multiple.evaluate(train_dataset, config, M=config["M"])
+    results = evaluation_multiple.evaluate(train_dataset, config, M=config["M"])
+    for x, y in results._asdict().items():
+        print(f"{x}: {y:.3f}")
+        wandb.log({f"{x}": y})
 
-    else:
-        model_module = importlib.import_module('modules.model')
-        importlib.reload(model_module)
-        model = model_module.MICE(
-            max_iter=config["max_iter"],
-            random_state=config["seed"]
-        )
-        imputed = pd.DataFrame(
-            model.fit_transform(np.array(train_dataset.data)), 
-            columns=train_dataset.data.columns
-        )
-        imputed = undummify(imputed, prefix_sep='###')
+    model_module = importlib.import_module('modules.model')
+    importlib.reload(model_module)
+    model = model_module.MICE(
+        max_iter=config["max_iter"],
+        random_state=config["seed"]
+    )
+    imputed = pd.DataFrame(
+        model.fit_transform(np.array(train_dataset.data)), 
+        columns=train_dataset.data.columns
+    )
+    imputed = undummify(imputed, prefix_sep='###')
 
-        # un-standardization of synthetic data
-        for col, scaler in train_dataset.scalers.items():
-            imputed[[col]] = scaler.inverse_transform(imputed[[col]])
+    # un-standardization of synthetic data
+    for col, scaler in train_dataset.scalers.items():
+        imputed[[col]] = scaler.inverse_transform(imputed[[col]])
 
-        # post-process
-        imputed[train_dataset.categorical_features] = imputed[train_dataset.categorical_features].astype(int)
-        imputed[train_dataset.integer_features] = imputed[train_dataset.integer_features].round(0).astype(int)
-        display(imputed.head())
+    # post-process
+    imputed[train_dataset.categorical_features] = imputed[train_dataset.categorical_features].astype(int)
+    imputed[train_dataset.integer_features] = imputed[train_dataset.integer_features].round(0).astype(int)
+    display(imputed.head())
 
-        results = evaluation.evaluate(imputed, train_dataset, test_dataset, config, device)
+    results = evaluation.evaluate(imputed, train_dataset, test_dataset, config, device)
+    #%%
     for x, y in results._asdict().items():
         print(f"{x}: {y:.3f}")
         wandb.log({f"{x}": y})
@@ -145,8 +146,8 @@ def main():
         base_name, 
         type='dataset',
         metadata=config) 
-    imputed.to_csv(f"{data_dir}_{config['seed']}.csv", index=None)
-    artifact.add_file(f"{data_dir}_{config['seed']}.csv")
+    # imputed.to_csv(f"{data_dir}_{config['seed']}.csv", index=None)
+    # artifact.add_file(f"{data_dir}_{config['seed']}.csv")
     artifact.add_file('./modules/model.py')
     artifact.add_file('./imputer.py')
     wandb.log_artifact(artifact)

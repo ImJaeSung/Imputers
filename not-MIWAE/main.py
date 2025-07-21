@@ -27,7 +27,7 @@ except:
     subprocess.run(["wandb", "login"], input=key[0], encoding='utf-8')
     import wandb
 
-project = "not-MIWAE" # put your WANDB project name
+project = "dimvae_baselines" # put your WANDB project name
 # entity = "wotjd1410" # put your WANDB username
 
 run = wandb.init(
@@ -56,6 +56,8 @@ def get_args(debug):
     parser = argparse.ArgumentParser('parameters')
     parser.add_argument("--seed", type=int, default=0, 
                         help="seed for repeatable results")
+    parser.add_argument("--model", type=str, default="not-MIWAE")
+    
     parser.add_argument('--dataset', type=str, default='nomao', 
                         help="""
                         Dataset options: 
@@ -65,23 +67,20 @@ def get_args(debug):
     parser.add_argument("--test_size", default=0.2, type=float,
                         help="the ratio of train test split") 
     
-    parser.add_argument("--missing_type", default="MCAR", type=str,
+    parser.add_argument("--missing_type", default="MAR", type=str,
                         help="how to generate missing: MCAR, MAR, MNARL, MNARQ") 
     parser.add_argument("--missing_rate", default=0.3, type=float,
                         help="missing rate") 
     
     parser.add_argument('--batch_size', type=int, default=1024,
                         help='Batch size.')
-    parser.add_argument('--epochs', type=int, default=500,
+    parser.add_argument('--epochs', type=int, default=300,
                         help='Number of epochs.')
     parser.add_argument('--lr', type=float, default=0.001,
                         help='Learning rate.')
             
     parser.add_argument('--k', type=int, default=20,
                         help='# number of IS during training.')
-    
-    parser.add_argument('--multiple', default=False, type=str2bool,
-                        help="multiple imputation")
     
     if debug:
         return parser.parse_args(args=[])
@@ -105,27 +104,19 @@ def main():
     dataset_module = importlib.import_module('datasets.preprocess')
     importlib.reload(dataset_module)
     CustomDataset = dataset_module.CustomDataset
-    
-    if config["multiple"]: 
-        config["test_size"] = 0 # not using test data in multiple imputation
-        train_dataset = CustomDataset(
-            config,
-            train=True
-        )
-    
-    else:      
-        train_dataset = CustomDataset(
-            config,
-            train=True
-        )
+
+    train_dataset = CustomDataset(
+        config,
+        train=True
+    )
 
     train_dataset_zero = train_dataset.data.copy()
     train_dataset_zero[np.isnan(train_dataset.data)] = 0 # zero imputation
     
     (n, p) = train_dataset.data.shape
     config["input_dim"] = p
-    config["hidden_dim"] = p
-    config["latent_dim"] = p//2
+    config["hidden_dim"] = p//2
+    config["latent_dim"] = p//4
     wandb.config.update(config, allow_val_change=True)
     
     # mask

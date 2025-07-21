@@ -13,7 +13,7 @@ warnings.filterwarnings("ignore")
 Metrics = namedtuple(
     "Metrics",
     [
-        "bias", "coverage", "interval"
+        "bias", "bias_percent", "coverage", "interval"
     ],
 )
 #%%
@@ -39,10 +39,11 @@ def evaluate(train_dataset, model, M=100):
     upper = Q + 1.96 * np.sqrt(U)
     
     bias = float(np.abs(Q - true).mean())
+    bias_percent = 100 * float((np.abs((Q - true)/Q)).mean())
     coverage = float(((lower < true) & (true < upper)).mean())
     interval = float((upper - lower).mean())
     
     return Metrics(
-        bias, coverage, interval
+        bias, bias_percent, coverage, interval
     )
 #%%

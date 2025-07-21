@@ -47,6 +47,8 @@ def get_args(debug):
     
     parser.add_argument('--ver', type=int, default=0, 
                         help='model version number')
+    parser.add_argument("--model", type=str, default="not-MIWAE")
+    
     parser.add_argument('--dataset', type=str, default='nomao', 
                         help="""
                         Dataset options: 
@@ -54,15 +56,13 @@ def get_args(debug):
                         kings, letter, loan, redwine, whitewine
                         """)
     
-    parser.add_argument("--missing_type", default="MCAR", type=str,
+    parser.add_argument("--missing_type", default="MAR", type=str,
                         help="how to generate missing: MCAR, MAR, MNARL, MNARQ") 
     parser.add_argument("--missing_rate", default=0.3, type=float,
                         help="missing rate") 
     
     # multiple imputation
-    parser.add_argument('--multiple', default=False, type=str2bool,
-                        help="multiple imputation")
-    parser.add_argument("--M", default=20, type=int,
+    parser.add_argument("--M", default=50, type=int,
                         help="the number of multiple imputation")
     
     if debug:
@@ -140,19 +140,14 @@ def main():
     wandb.log({"Number of Parameters": num_params / 1000})
     #%%
     """imputation"""
-    if config["multiple"]:
-        results = evaluation_multiple.evaluate(train_dataset, model, config['M'])
-    else:
-        start_time = time.time()
+    results = evaluation_multiple.evaluate(train_dataset, model, config['M'])
+
+    for x, y in results._asdict().items():
+        print(f"{x}: {y:.3f}")
+        wandb.log({f"{x}": y})
         
-        imputed = model.impute(
-            train_dataset, M=config['M'], seed=config["seed"])
-        
-        end_time = time.time()
-        elapsed_time = end_time - start_time
-        print(f"not-MIWAE (imputation): {elapsed_time:.4f} seconds")
-        
-        results = evaluation.evaluate(imputed, train_dataset, test_dataset, config, device)
+    imputed = model.impute(train_dataset, M=config['M'], seed=config["seed"])
+    results = evaluation.evaluate(imputed, train_dataset, test_dataset, config, device)
     
     for x, y in results._asdict().items():
         print(f"{x}: {y:.3f}")
