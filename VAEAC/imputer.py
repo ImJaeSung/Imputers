@@ -63,7 +63,7 @@ def get_args(debug):
     parser.add_argument("--missing_rate", default=0.3, type=float,
                         help="missing rate")
     
-    parser.add_argument("--M", default=50, type=int,
+    parser.add_argument("--M", default=100, type=int,
                         help="the number of multiple imputation")
     
 

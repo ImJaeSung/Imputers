@@ -25,7 +25,7 @@ def evaluate(train_dataset, model, M=100):
     est = []
     var = []
     
-    full_imputed = model.impute(train_dataset, M=M, seed=0)
+    full_imputed = model.impute(train_dataset, M=M, multiple=True, seed=0)
     for imputed in tqdm(full_imputed):
         data = imputed[train_dataset.continuous_features]
         binary = (data > data.mean(axis=0)).astype(float)

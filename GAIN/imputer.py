@@ -63,7 +63,7 @@ def get_args(debug=False):
     parser.add_argument('--hint_rate', default=0.9, type=float,
                          help='hint probability')
 
-    parser.add_argument("--M", default=50, type=int,
+    parser.add_argument("--M", default=100, type=int,
                         help="the number of multiple imputation")
 
     if debug:

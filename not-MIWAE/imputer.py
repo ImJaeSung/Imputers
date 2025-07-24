@@ -23,7 +23,7 @@ except:
     subprocess.run(["wandb", "login"], input=key[0], encoding='utf-8')
     import wandb
 
-project = "not-MIWAE" # put your WANDB project name
+project = "dimvae_baselines" # put your WANDB project name
 # entity = "wotjd1410" # put your WANDB username
 
 run = wandb.init(
@@ -62,7 +62,7 @@ def get_args(debug):
                         help="missing rate") 
     
     # multiple imputation
-    parser.add_argument("--M", default=50, type=int,
+    parser.add_argument("--M", default=100, type=int,
                         help="the number of multiple imputation")
     
     if debug:
@@ -146,7 +146,7 @@ def main():
         print(f"{x}: {y:.3f}")
         wandb.log({f"{x}": y})
         
-    imputed = model.impute(train_dataset, M=config['M'], seed=config["seed"])
+    imputed = model.impute(train_dataset, M=config['M'], multiple=False, seed=config["seed"])
     results = evaluation.evaluate(imputed, train_dataset, test_dataset, config, device)
     
     for x, y in results._asdict().items():

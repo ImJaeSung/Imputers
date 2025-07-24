@@ -213,7 +213,7 @@ class notMIWAE(nn.Module):
         
         return neg_bound, disc_loss
     
-    def impute(self, train_dataset, M, seed=0):
+    def impute(self, train_dataset, M, multiple, seed=0):
         set_random_seed(seed)
         
         train_dataloader = DataLoader(
@@ -285,7 +285,7 @@ class notMIWAE(nn.Module):
         imputed_ = torch.cat(imputed_, dim=1)
 
         # multiple imputation
-        if self.config["multiple"]:
+        if multiple:
             imputed = []
             for data in imputed_: 
                 data = pd.DataFrame(data.cpu().numpy(), columns=train_dataset.features)
@@ -308,7 +308,7 @@ class notMIWAE(nn.Module):
                 imputed_[:, :, train_dataset.EncodedInfo.num_continuous_features:], dim=0
             )[0]
             imputed = torch.cat([cont_imputed, disc_imputed], dim=1)
-            imputed= pd.DataFrame(imputed.cpu().numpy(), columns=train_dataset.features)
+            imputed = pd.DataFrame(imputed.cpu().numpy(), columns=train_dataset.features)
             
             """un-standardization of synthetic data"""
             for col, scaler in train_dataset.scalers.items():

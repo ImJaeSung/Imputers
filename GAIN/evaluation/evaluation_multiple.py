@@ -10,7 +10,7 @@ Metrics = namedtuple(
     ],
 )
 #%%
-def evaluate(train_dataset, G, config, device, M=50):
+def evaluate(train_dataset, G, config, device, M=100):
     """target estimand"""
     data = train_dataset.raw_data[train_dataset.continuous_features]
     true = (data > data.mean(axis=0)).astype(float).mean(axis=0)
