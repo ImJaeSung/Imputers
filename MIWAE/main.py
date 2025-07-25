@@ -78,7 +78,7 @@ def get_args(debug):
 #%% 
 def main():
     #%%
-    config = vars(get_args(debug=True))
+    config = vars(get_args(debug=False))
     config["cuda"] = torch.cuda.is_available()
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     wandb.config.update(config)
