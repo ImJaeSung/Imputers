@@ -112,13 +112,18 @@ class MIWAE(nn.Module):
         #Category Var loss
         cat_mask = mask[:, self.num_continuous_features:].to(torch.bool)
         cat_mask = torch.Tensor.repeat(cat_mask, [self.k, 1])
-        disc_loss = 0
+        
+        disc_loss = torch.tensor(0.0, device=x.device)
         st = 0
         end = 0
         for i, n in enumerate(self.num_categories):
             end += n
             target = x[:,self.num_continuous_features+i].to(torch.long)
             target = torch.Tensor.repeat(target,[self.k, 1]).reshape(-1)
+            
+            if cat_mask[:, i].sum() == 0: # not include missing value case
+                continue
+            
             disc_loss += torch.nn.functional.cross_entropy(
                 logit[:,st:end][cat_mask[:,i]], target[cat_mask[:,i]]-1
             )

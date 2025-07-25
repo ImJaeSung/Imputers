@@ -41,9 +41,9 @@ def arg_as_list(s):
 def get_args(debug):
     parser = argparse.ArgumentParser('parameters')
     parser.add_argument("--model", type=str, default="MIWAE")
-    parser.add_argument("--seed", type=int, default=0, 
+    parser.add_argument("--seed", type=int, default=2, 
                         help="seed for repeatable results")
-    parser.add_argument('--dataset', type=str, default='loan', 
+    parser.add_argument('--dataset', type=str, default='concrete', 
                         help="""
                         Dataset options: 
                         abalone, anuran, banknote, breast, concrete,
@@ -54,7 +54,7 @@ def get_args(debug):
     
     parser.add_argument("--missing_type", default="MAR", type=str,
                         help="how to generate missing: MCAR, MAR, MNARL, MNARQ") 
-    parser.add_argument("--missing_rate", default=0.3, type=float,
+    parser.add_argument("--missing_rate", default=0.9, type=float,
                         help="missing rate") 
 
     parser.add_argument('--hidden_dim', type=int, nargs='+', default=64,
@@ -78,7 +78,7 @@ def get_args(debug):
 #%% 
 def main():
     #%%
-    config = vars(get_args(debug=False))
+    config = vars(get_args(debug=True))
     config["cuda"] = torch.cuda.is_available()
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     wandb.config.update(config)

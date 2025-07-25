@@ -20,13 +20,12 @@ def train_function(
         "Disc_loss":[],
         "Total_loss":[]
     }
+
     for x, mask in tqdm(zip(train_dataloader, mask_loader), desc="inner loop..."):
         loss_ = []
-        
-        x, mask = x.float().to(device), mask.to(device)
+        x, mask = x.float().to(device), mask.to(device) # 0:missing
 
         optimizer.zero_grad()
-        
         # x = torch.from_numpy(batches_data[i]).float().to(device)
         # mask = torch.from_numpy(batches_mask[i]).float().to(device)
         
@@ -35,7 +34,6 @@ def train_function(
         loss_.append(("NLL", neg_bound))
         loss_.append(("Disc_loss", disc_loss))
         loss_.append(("Total_loss", loss))
-        
         loss.backward()
         optimizer.step()
 
@@ -43,3 +41,4 @@ def train_function(
             logs[x] = logs.get(x) + [y.item()]
         
     return logs
+# %%
