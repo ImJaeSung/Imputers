@@ -40,7 +40,7 @@ def arg_as_list(s):
 #%%
 def get_args(debug):
     parser = argparse.ArgumentParser('parameters')
-    parser.add_argument("--model", type=str, default="MIWAE")
+    parser.add_argument("--model", type=str, default="miwae")
     parser.add_argument("--seed", type=int, default=2, 
                         help="seed for repeatable results")
     parser.add_argument('--dataset', type=str, default='concrete', 

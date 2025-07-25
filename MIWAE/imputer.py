@@ -42,7 +42,7 @@ def str2bool(v):
 def get_args(debug):
     parser = argparse.ArgumentParser('parameters')
     
-    parser.add_argument("--model", type=str, default="MIWAE")
+    parser.add_argument("--model", type=str, default="miwae")
     parser.add_argument('--ver', type=int, default=0, 
                         help='model version number')
     
