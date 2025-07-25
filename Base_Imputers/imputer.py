@@ -105,10 +105,14 @@ def main():
         scalers=train_dataset.scalers,
         train=False)
     #%%
-    if config['model'] == 'kNNI':
-        data_name = f"KNNI_{config['seed']}.csv"
-    else:
-        data_name = f"{config['model']}_{config['seed']}.csv"
+    file1 = f"{config['model']}_{config['seed']}.csv" 
+    file2 = f"KNNI_{config['seed']}.csv"               
+
+    if os.path.exists(model_dir + "/" + file1):
+        data_name = file1
+    elif os.path.exists(model_dir + "/" + file2):
+        data_name = file2
+        
     imputed = pd.read_csv(model_dir + "/" + data_name).astype(float)
     #%%
     results = evaluate(imputed, train_dataset, test_dataset, config, device)

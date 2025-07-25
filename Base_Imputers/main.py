@@ -147,6 +147,31 @@ def main():
         end_time = time.time()
         elapsed_time = end_time - start_time
         print(f"{method} : {elapsed_time:.4f} seconds")
+        
+    elif config["model"] == "ReMasker":
+        remasker_module = importlib.import_module('remasker.remasker_impute')
+        importlib.reload(remasker_module)
+        method = "ReMasker"
+        print(f"====={method}=====")
+        imputer = remasker_module.ReMasker()
+        
+        X = pd.DataFrame(train_dataset.data, columns=train_dataset.features)
+        X = pd.get_dummies(
+            X, columns=train_dataset.categorical_features, prefix_sep="###"
+        ).astype(float)
+        out = imputer.fit_transform(X)
+        out = pd.DataFrame(out, columns=X.columns)
+        out = undummify(out)
+        
+        """un-standardization of synthetic data"""
+        for col, scaler in train_dataset.scalers.items():
+            out[[col]] = scaler.inverse_transform(out[[col]])
+        
+        # post-process
+        out[train_dataset.categorical_features] = out[train_dataset.categorical_features].astype(int)
+        out[train_dataset.integer_features] = out[train_dataset.integer_features].round(0).astype(int)
+        imputed.append((method, out))
+        display(out.head())
 
     #%%
     # """kNN Imputer"""
