@@ -41,7 +41,8 @@ class MIWAE(nn.Module):
             nn.ReLU(),
             nn.Linear(self.hidden_dim, self.hidden_dim),
             nn.ReLU(),
-            nn.Linear(self.hidden_dim, 3*self.num_continuous_features+sum(self.num_categories)), 
+            # nn.Linear(self.hidden_dim, 3*self.num_continuous_features+sum(self.num_categories)), 
+            nn.Linear(self.hidden_dim, 105), 
             # nn.Sigmoid(),
         )
        # Decoder will output (1)the mean, (2)the scale, and (3) the number of degree
