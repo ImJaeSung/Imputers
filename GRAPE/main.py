@@ -122,7 +122,6 @@ def main():
     gnn_module = importlib.import_module('modules.gnn_model')
     importlib.reload(gnn_module)    
     gnn = gnn_module.get_gnn(train_dataset.data, config).to(device)
-    gnn.train()
     #%%
     impute_module = importlib.import_module('modules.prediction_model')
     importlib.reload(impute_module)   
@@ -143,6 +142,9 @@ def main():
     print(f"Number of Parameters: {num_params_impute/1000:.1f}K")
     #%%
     """train"""
+    gnn.train()
+    impute_model.train()
+    
     start_time = time.time()
     train_module = importlib.import_module('modules.train')
     importlib.reload(train_module)
