@@ -55,10 +55,9 @@ def mask_edge(edge_index, edge_attr, mask, remove_edge):
         edge_attr[~mask] = 0. 
     
     return edge_index, edge_attr
-
 #%%
 def create_node(df, mode):
-    if mode == 0: # onehot feature node, all 1 sample node
+    if mode == 'feature': # onehot feature node, all 1 sample node
         n_row, n_col = df.shape
         # feature_ind = np.array(range(ncol))
         # feature_node = np.zeros((ncol, ncol))
@@ -67,7 +66,7 @@ def create_node(df, mode):
         sample_node = [[1]*n_col for _ in range(n_row)]
         node = sample_node + feature_node.tolist()
 
-    elif mode == 1: # onehot sample and feature node
+    elif mode == 'sample': # onehot sample and feature node
         n_row, n_col = df.shape
         feature_ind = np.array(range(n_col))
         feature_node = np.zeros((n_col,n_col+1))
@@ -77,6 +76,29 @@ def create_node(df, mode):
         node = sample_node.tolist() + feature_node.tolist()
     
     return node
+#%%
+def renormalization(norm_data, norm_parameters):
+    '''Renormalize data from [0, 1] range to the original range.
+
+    Args:
+    - norm_data: normalized data
+    - norm_parameters: min_val, max_val for each feature for renormalization
+
+    Returns:
+    - renorm_data: renormalized original data
+    '''
+
+    min_val = norm_parameters['min_val']
+    max_val = norm_parameters['max_val']
+
+    _, dim = norm_data.shape
+    renorm_data = norm_data.copy()
+
+    for i in range(dim):
+        renorm_data[:,i] = renorm_data[:,i] * (max_val[i] + 1e-6)   
+        renorm_data[:,i] = renorm_data[:,i] + min_val[i]
+
+    return renorm_data
 #%%
 def create_edge(df_X):
     n_row, n_col = df_X.shape

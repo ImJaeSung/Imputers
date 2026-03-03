@@ -4,13 +4,12 @@ import argparse
 import importlib
 import time
 
-from sklearn.model_selection import train_test_split
-
 import torch
-from torch.utils.data import DataLoader
 import torch.optim as optim
 
 from modules.utils import set_random_seed
+from evaluation.evaluation_multiple import multiple_evaluate
+from evaluation import evaluation
 #%%
 import warnings
 warnings.filterwarnings('ignore')
@@ -52,58 +51,50 @@ def get_args(debug):
     parser.add_argument('--model_types', type=str, default='EGSAGE_EGSAGE_EGSAGE')
     parser.add_argument("--seed", default=0, type=int,
                         help="seed for repeatable results") 
-    parser.add_argument('--dataset', type=str, default='concrete', 
+    parser.add_argument('--dataset', type=str, default='redwine', 
                         help="""
                         Dataset options: 
                         loan, kings, banknote, concrete, redwine, 
                         whitewine, breast, letter, abalone, anuran,
                         spam, diabetes, dna, ncbirths
                         """)
-
-    # parser.add_argument('--train_edge', type=float, default=0.7) # 1 - missing rate
-    parser.add_argument('--split_sample', type=float, default=0.)
-    parser.add_argument('--split_by', type=str, default='y') # 'y', 'random'
-    parser.add_argument('--split_train', action='store_true', default=False)
-    parser.add_argument('--split_test', action='store_true', default=False)
-    # parser.add_argument('--train_y', type=float, default=0.7)
-    parser.add_argument('--node_mode', type=int, default=0) # 0: feature onehot, sample all 1; 1: all onehot
-
-    parser.add_argument("--missing_type", default="MAR", type=str,
-                        help="how to generate missing: MCAR, MAR, MNARL, MNARQ") 
-    parser.add_argument("--missing_rate", default=0.3, type=float,
-                        help="missing rate")
-    
-    parser.add_argument('--node_dim', type=int, default=64)
-    parser.add_argument('--edge_dim', type=int, default=64)
-    parser.add_argument('--edge_mode', type=int, default=1)  # 0: use it as weight; 1: as input to mlp
-    
-    parser.add_argument('--impute_hiddens', type=str, default='64')
-     
+    parser.add_argument('--node_mode', type=str, default='feature', 
+                        help='one-hot encoding (options: feature, sample)') 
     parser.add_argument("--test_size", default=0.2, type=float,
                         help="the ratio of train test split") 
-    # parser.add_argument('--batch_size', default=256, type=int,
-    #                     help='batch size')  
+    parser.add_argument("--missing_type", default="MAR", type=str,
+                        help="how to generate missing: MCAR, MAR, MNARL, MNARQ") 
+    parser.add_argument("--missing_rate", default=0.7, type=float,
+                        help="missing rate")
+
     parser.add_argument('--epochs', default=20000, type=int,
                         help='Number epochs to train GRAPE.')
     parser.add_argument('--lr', default=0.001, type=float,
                         help='learning rate to train GRAPE')
     parser.add_argument('--dropout', type=float, default=0.)
     parser.add_argument('--weight_decay', type=float, default=0.)
-    parser.add_argument('--loss_mode', type=int, default=0) # 0: loss on all train edge, 1: loss only on unknown train edge
-    
-    parser.add_argument('--opt_restart', type=int, default=0)
-    parser.add_argument('--opt_decay_step', type=int, default=1000)
-    parser.add_argument('--opt_decay_rate', type=float, default=0.9)
-    
-    parser.add_argument('--valid', type=float, default=0.)
-    parser.add_argument('--known', type=float, default=0.7) # 1 - edge dropout rate
-    parser.add_argument('--auto_known', action='store_true', default=False)
+    parser.add_argument('--loss_mode', type=int, default=0,
+                        help='0: loss on all train edge, 1: loss only on unknown train edge')
+
+    parser.add_argument('--node_dim', type=int, default=64)
+    parser.add_argument('--edge_dim', type=int, default=64)
+    parser.add_argument('--edge_mode', type=int, default=1,
+                        help='0: use it as weight; 1: as input to mlp') 
+    parser.add_argument('--known', type=float, default=0.7,
+                        help='1 - edge dropout rate')
     parser.add_argument('--gnn_activation', type=str, default='relu')
+    parser.add_argument('--impute_hiddens', type=str, default='64')
     parser.add_argument('--impute_activation', type=str, default='relu')
-    parser.add_argument('--post_hiddens', type=str, default=None,) # default to be 1 hidden of node_dim
+    parser.add_argument('--post_hiddens', type=str, default=None,
+                        help='default to be 1 hidden of node_dim')
     parser.add_argument('--concat_states', action='store_true', default=False)
-    parser.add_argument('--norm_embs', type=str, default=None,) # default to be all true
-    parser.add_argument('--aggr', type=str, default='mean',)
+    parser.add_argument('--norm_embs', type=str, default=None,
+                        help='default to be all true') 
+    parser.add_argument('--aggr', type=str, default='mean',
+                        help='aggregation function in GNN')
+    
+    parser.add_argument('--M', type=int, default=100, 
+                        help='the number of multiple imputation')
     
     if debug:
         return parser.parse_args(args=[])
@@ -112,7 +103,7 @@ def get_args(debug):
 #%%
 def main():
     #%%
-    config = vars(get_args(debug=True)) # default configuration
+    config = vars(get_args(debug=False)) # default configuration
     set_random_seed(config['seed'])
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print('Current device is', device)
@@ -120,20 +111,22 @@ def main():
 
     assert config["missing_type"] != None
     #%%
-    """dataset"""
+    """dataset"""    
     dataset_module = importlib.import_module('datasets.preprocess')
     importlib.reload(dataset_module)
-    data, train_data, test_data = dataset_module.load_data(config)
+    CustomDataset = dataset_module.CustomDataset
+    train_dataset = CustomDataset(config)
+    test_dataset = CustomDataset(config, train=False)
     #%%
     """model"""
     gnn_module = importlib.import_module('modules.gnn_model')
     importlib.reload(gnn_module)    
-    gnn = gnn_module.get_gnn(data, config).to(device)
+    gnn = gnn_module.get_gnn(train_dataset.data, config).to(device)
     gnn.train()
     #%%
     impute_module = importlib.import_module('modules.prediction_model')
     importlib.reload(impute_module)   
-    impute_model = impute_module.MLPNet(gnn,config, data).to(device)
+    impute_model = impute_module.MLPNet(gnn,config, train_dataset.data).to(device)
     #%%
     optimizer = optim.Adam(
         filter(lambda p : p.requires_grad,list(gnn.parameters())+ list(impute_model.parameters())), 
@@ -154,11 +147,26 @@ def main():
     train_module = importlib.import_module('modules.train')
     importlib.reload(train_module)
     train_module.train_function(
-        gnn, impute_model, config, data, optimizer, scheduler, 'tmp/', device
+        gnn, impute_model, config, train_dataset.data, optimizer, scheduler, device
     )
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"GRAPE (train): {elapsed_time:.4f} seconds")
+    #%%
+    """imputation"""
+    gnn.eval()
+    impute_model.eval()
+    
+    imputed = impute_model.impute(train_dataset, gnn, device)
+    results = evaluation.evaluate(imputed, train_dataset, test_dataset, config, device)
+    for x, y in results._asdict().items():
+        print(f"{x}: {y:.3f}")
+        wandb.log({f"{x}": y})
+    #%%
+    results = multiple_evaluate(train_dataset, impute_model, gnn, config, device)
+    for x, y in results._asdict().items():
+        print(f"{x}: {y:.3f}")
+        wandb.log({f"{x}": y})
     #%%
     """model save"""
     base_name = f"{config['model']}_{config['missing_type']}_{config['missing_rate']}_{config['dataset']}"

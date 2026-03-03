@@ -37,10 +37,10 @@ class EGraphSage(MessagePassing):
             self.message_lin = nn.Linear(2*in_channels+edge_channels, out_channels)
         elif edge_mode == 3:
             self.message_lin = nn.Sequential(
-                    nn.Linear(2*in_channels+edge_channels, out_channels),
-                    get_activation(activation),
-                    nn.Linear(out_channels, out_channels),
-                    )
+                nn.Linear(2*in_channels+edge_channels, out_channels),
+                get_activation(activation),
+                nn.Linear(out_channels, out_channels),
+            )
         elif edge_mode == 4:
             self.message_lin = nn.Linear(in_channels, out_channels*edge_channels)
         elif edge_mode == 5:
