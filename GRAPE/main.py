@@ -56,7 +56,7 @@ def get_args(debug):
                         Dataset options: 
                         loan, kings, banknote, concrete, redwine, 
                         whitewine, breast, letter, abalone, anuran,
-                        spam, diabetes, dna, ncbirths
+                        shoppers, default
                         """)
     parser.add_argument('--node_mode', type=str, default='feature', 
                         help='one-hot encoding (options: feature, sample)') 
@@ -64,7 +64,7 @@ def get_args(debug):
                         help="the ratio of train test split") 
     parser.add_argument("--missing_type", default="MAR", type=str,
                         help="how to generate missing: MCAR, MAR, MNARL, MNARQ") 
-    parser.add_argument("--missing_rate", default=0.7, type=float,
+    parser.add_argument("--missing_rate", default=0.3, type=float,
                         help="missing rate")
 
     parser.add_argument('--epochs', default=20000, type=int,

@@ -234,7 +234,7 @@ def load_raw_data(dataset):
         ClfTarget = "quality"
         
     elif dataset == "whitewine":
-        data = pd.read_csv('./data/winequality-white.csv', delimiter=";")
+        data = pd.read_csv('./data/whitewine.csv', delimiter=";")
         columns = list(data.columns)
         columns.remove("quality")
         
@@ -678,7 +678,7 @@ def load_raw_data(dataset):
         ClfTarget = "Revenue"
 
     elif dataset == "default":
-        data = pd.read_csv('./data/default.csv')
+        data = pd.read_excel('./data/default of credit card clients.xls', engine='xlrd', skiprows=1)
         
         assert data.isna().sum().sum() == 0
         
@@ -708,14 +708,14 @@ def load_raw_data(dataset):
             'PAY_4',
             'PAY_5', 
             'PAY_6', 
-            'default_payment_next_month'
+            'default payment next month'
         ]
         integer_features = [
             'LIMIT_BAL',  
             'AGE', 
         ]
-        ClfTarget = "default_payment_next_month"    
-
+        ClfTarget = "default payment next month"    
+        
     elif dataset == "BAF":
         # https://www.kaggle.com/datasets/sgpjesus/bank-account-fraud-dataset-neurips-2022/data
         data = pd.read_csv('./data/BAF.csv')
